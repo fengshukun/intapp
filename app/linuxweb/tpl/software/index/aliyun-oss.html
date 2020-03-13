@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+<html>
+<head>
+	<meta charset="utf-8" />
+	<title>kcw-linux控制板</title>
+	<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
+	<meta name="HandheldFriendly" content="true"/>
+	<meta name="MobileOptimized" content="320"/>
+	<link rel="stylesheet" href="${static['static']}/element-ui/2.4.11/lib/theme-chalk/index.css"/>
+	<link rel="stylesheet" href="${static['static']}/font/font-awesome-4.7.0/css/font-awesome.min.css"/>
+	<link rel="stylesheet" href="/css/default.css"/>
+	<script src="${static['static']}/vue/2.6.10/vue.min.js"></script>
+	<script src="${static['static']}/element-ui/2.4.11/lib/index.js"></script>
+	<script src="${static['static']}/axios/0.18.0/axios.min.js"></script>
+	<script src="${static['static']}/qs/6.5.2/qs.min.js"></script>
+	<script src="${static['static']}/static/js/md5.min.js"></script>
+	<script src="/js/function.js"></script>
+</head>
+<style>
+*{padding:0px;margin:0px}
+.kcw-side-scroll::-webkit-scrollbar{width:0px}
+.kcw-side-scroll1::-webkit-scrollbar{width: 10px;  /*滚动条宽度*/height: 10px;  /*滚动条高度*/}
+/*定义滚动条轨道 内阴影+圆角*/  
+.kcw-side-scroll1::-webkit-scrollbar-track  {-webkit-box-shadow: inset 0 0 6px rgba(255, 255, 255, 0.3);border-radius: 10px;  /*滚动条的背景区域的圆角*/background-color: #ffffff;/*滚动条的背景颜色*/  }  
+/*定义滑块 内阴影+圆角*/  
+.kcw-side-scroll1::-webkit-scrollbar-thumb  {border-radius: 4px;  /*滚动条的圆角*/-webkit-box-shadow: inset 0 0 6px rgba(255, 255, 255, 0.3); background-color: rgb(196, 202, 196);  /*滚动条的背景颜色*/}
+
+</style>
+<body style="background:#FFF">
+<div id="app">
+    <div>
+        <el-form ref="form" :model="aliyun" label-width="200px" style="width:600px">
+                    <el-form-item label="阿里云OSS 域名">
+                        <el-input v-model="aliyun.host"></el-input>
+                    </el-form-item>
+                    <el-form-item label="阿里云OSS 配置域名">
+                            <el-input v-model="aliyun.myhost"></el-input>
+                        </el-form-item>
+                    <el-form-item label="阿里云OSS bucket">
+                        <el-input v-model="aliyun.bucket"></el-input>
+                    </el-form-item>
+                    <el-form-item label="阿里云 access_key_id">
+                        <el-input v-model="aliyun.access_key_id"></el-input>
+                    </el-form-item>
+                    <el-form-item label="阿里云 access_key_secret">
+                        <el-input v-model="aliyun.access_key_secret"></el-input>
+                    </el-form-item>
+                    <el-form-item>
+                        <el-button type="primary" @click="updconfig()">保存</el-button>
+                    </el-form-item>
+        </el-form>
+    </div>
+</div>
+</body>
+<script>
+var vm = new Vue({
+	el: '#app',
+	data: {
+		winheight:document.documentElement.clientHeight,
+		winwidth:document.documentElement.clientWidth,
+        aliyun:{oss:false,host:'',myhost:'',bucket:'',access_key_id:'',access_key_secret:''},
+		id:"${id}",
+    },
+    mounted(){
+		self=this
+        self.getconfig()
+    },
+    methods: {
+        getconfig(){
+			self=this
+			self.get("/software/aliyun/getconfig",null,'获取中...').then(res => {
+				if (res.data){
+                    self.aliyun=res.data
+                }
+			})
+		},
+        updconfig(){
+			self=this
+			self.post("/software/aliyun/updconfig",self.aliyun,'更新中...').then(res => {
+				if(res.code==0){
+                    self.$message({type: 'success',message: res.msg});
+                }
+			})
+		}
+    }
+});
+</script>
+</html>

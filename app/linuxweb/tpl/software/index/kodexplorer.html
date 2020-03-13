@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>kcw-linux控制板</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
+    <meta name="HandheldFriendly" content="true"/>
+    <meta name="MobileOptimized" content="320"/>
+    <link rel="stylesheet" href="${static['static']}/element-ui/2.4.11/lib/theme-chalk/index.css"/>
+    <link rel="stylesheet" href="${static['static']}/font/font-awesome-4.7.0/css/font-awesome.min.css"/>
+    <link rel="stylesheet" href="/css/default.css"/>
+    <script src="${static['static']}/vue/2.6.10/vue.min.js"></script>
+    <script src="${static['static']}/element-ui/2.4.11/lib/index.js"></script>
+    <script src="${static['static']}/axios/0.18.0/axios.min.js"></script>
+    <script src="${static['static']}/qs/6.5.2/qs.min.js"></script>
+    <script src="${static['static']}/static/js/md5.min.js"></script>
+    <script src="/js/function.js"></script>
+</head>
+<body>
+<div id="app">
+    <div v-if="phpeditionath.length">
+        <el-form ref="form" :model="admin" label-width="80px" label-position="left">
+            <el-form-item label="绑定域名">
+                <el-input type="textarea" :autosize="{ minRows: 4, maxRows: 4}" placeholder="域名信息，支持多个域名，以换行符分隔" v-model="admin.domain"></el-input>
+            </el-form-item>
+            <el-form-item label="端口">
+                <el-input placeholder="端口" v-model="admin.port" :disabled="true" style="width:80px"></el-input>
+            </el-form-item>
+            <el-form-item label="网站名">
+                <el-input placeholder="网站名" v-model="admin.title" :disabled="true"></el-input>
+            </el-form-item>
+            <el-form-item label="备注">
+                <el-input placeholder="备注" v-model="admin.describes" :disabled="true"></el-input>
+            </el-form-item>
+            <el-form-item label="网站目录">
+                <el-input placeholder="网站目录" v-model="admin.path" :disabled="true"></el-input>
+            </el-form-item>
+            <el-form-item label="php版本">
+                <el-select v-model="admin.phpeditionath" placeholder="php版本">
+                    <el-option v-for="item,index in phpeditionath"  :label="item.title" :value="item.title"></el-option>
+                </el-select>
+            </el-form-item>
+            </el-form>
+            <span slot="footer" class="dialog-footer">
+                <el-button type="primary" @click="add">添加</el-button>
+            </span>
+    </div>
+</div>
+</body>
+<script>
+new Vue({
+    el: '#app',
+    data() {
+        return {
+            winheight:document.documentElement.clientHeight,
+            winwidth:document.documentElement.clientWidth,
+            data:{
+                'pagesize':20,
+                'count':0,
+                'pagenow':1,
+                'list':[]
+            },
+            admin:{icon:'',domain:'',port:'8801',title:'kodexplorer',describes:'kodexplorer',status:1,path:'',phpeditionath:''},admindialog:{status:false,title:'添加管理'},adminChange:[],currentPage: 5,
+            folder:{status:false,paths:'',
+                data:[]
+            },
+            phpeditionath:[],//php版本
+			sysinfo:{},
+        };
+    },
+    mounted(){
+        self=this
+        window.onresize = function(){
+            self.winheight=document.documentElement.clientHeight
+            self.winwidth=document.documentElement.clientWidth
+        }
+        self.post("/app/web/get",{
+			where:'describes="kodexplorer"'
+        },'获取中...').then(res => {
+            if (!res.data.list.length){
+                self.get('/index/home/getinfo').then(res => {
+                    self.sysinfo=res.data
+                    self.admin.path=res.data.configpath.linux_install_path+"other/kodexplorer"
+                    self.post('/software/index/select',{'where':"title like 'php%' and status >=4 and title not like 'phpmyadmin%' and title not like 'phpims%' and platform = '"+self.sysinfo.uname[0]+"'","field":'id,title'}).then(res => {
+                        self.phpeditionath=res.data
+                        self.obtain()
+                    })
+                })
+            }else{
+                self.$message({message: "kodexplorer无需重复设置",type: 'success'});
+            }
+        })
+		
+		
+    },
+    methods: {
+        obtain(){
+			self=this
+			self.get("/app/web/get?pagesize="+self.data.pagesize+"&pagenow="+self.data.pagenow,{
+			},'获取中...').then(res => {
+				self.data=res.data
+			})
+		},
+        add(){
+			self=this
+            var a= JSON.stringify(self.admin)
+            a=JSON.parse(a)
+            a['path']=self.admin.path
+			self.post("/app/web/add_web",a,"请稍后...").then(res => {
+				if(res.code==0){
+                    self.$message({message: "设置成功，请到应用网站列表下查看",type: 'success'});
+                    self.phpeditionath=[]
+                }
+			}).catch(err => {
+                self.admindialog.status=false
+            })
+		},
+        handleSelectionChange(val) {
+            self=this
+			self.adminChange=val
+		},
+    }
+});
+</script>
+</script>
+</html>

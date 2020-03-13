@@ -1,0 +1,46 @@
+#!/usr/bin/env python3.6intapp  
+# windows系统上无法运行该文件
+import re,sys,os
+import sys
+from gunicorn.app.wsgiapp import run
+from app.linuxweb.common import *
+if __name__ == '__main__':
+    zxtype=None
+    ar=sys.argv
+    for v in ar:
+        if v=='start':
+            zxtype=v
+        elif v=='stop':
+            zxtype=v
+        elif v=='restart':
+            zxtype=v
+    if zxtype == 'stop': #停止 
+        os.system("pkill -9 python3.6intapp")
+    else: #启动
+        sqlite("task").where('code','in',1,2,3,4,5).delete()
+        sqlite("php_exten",config.software).where('status','in',1,2,3,5).update({'status':0})
+        sqlite("software",config.software).where('status','in',1,2,3,5).update({'status':0})
+        sqlite("software",config.software).where('status','in',9,11).update({'status':4})
+        lists=sqlite("software",config.software).where('status',10).select()
+        i=0
+        for k in lists:
+            if (k['status'] == 10) and k['platform']=='Linux':
+                if 'nginx' in k['title'] :
+                    if not get_process_id('nginx'):
+                        SOFT.start(k)
+                elif 'redis' in k['title']:
+                    if not get_process_id('redis'):
+                        SOFT.start(k)
+                elif 'mysql' in k['title']:
+                    if not get_process_id('mysql'):
+                        SOFT.start(k)
+                elif 'php5' in k['title'] or 'php7' in k['title'] or 'phpims' in k['title']:
+                    if not get_process_id(k['title']):
+                        SOFT.start(k)
+            i+=1
+        if 'start' in sys.argv:
+            sys.argv.remove('start')
+        if '-start' in sys.argv:
+            sys.argv.remove('-start')
+        sys.argv[0] = re.sub(r'(-script\.pyw|\.exe)?$','',sys.argv[0])
+        sys.exit(run())

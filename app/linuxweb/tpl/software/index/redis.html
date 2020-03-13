@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+<html>
+<head>
+	<meta charset="utf-8" />
+	<title>kcw-linux控制板</title>
+	<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
+	<meta name="HandheldFriendly" content="true"/>
+	<meta name="MobileOptimized" content="320"/>
+	<link rel="stylesheet" href="${static['static']}/element-ui/2.4.11/lib/theme-chalk/index.css"/>
+	<link rel="stylesheet" href="${static['static']}/font/font-awesome-4.7.0/css/font-awesome.min.css"/>
+	<link rel="stylesheet" href="/css/default.css"/>
+	<script src="${static['static']}/vue/2.6.10/vue.min.js"></script>
+	<script src="${static['static']}/element-ui/2.4.11/lib/index.js"></script>
+	<script src="${static['static']}/axios/0.18.0/axios.min.js"></script>
+	<script src="${static['static']}/qs/6.5.2/qs.min.js"></script>
+	<script src="${static['static']}/static/js/md5.min.js"></script>
+	<script src="/js/function.js"></script>
+</head>
+<style>
+*{padding:0px;margin:0px}
+.kcw-side-scroll::-webkit-scrollbar{width:0px}
+.kcw-side-scroll1::-webkit-scrollbar{width: 10px;  /*滚动条宽度*/height: 10px;  /*滚动条高度*/}
+/*定义滚动条轨道 内阴影+圆角*/  
+.kcw-side-scroll1::-webkit-scrollbar-track  {-webkit-box-shadow: inset 0 0 6px rgba(255, 255, 255, 0.3);border-radius: 10px;  /*滚动条的背景区域的圆角*/background-color: #ffffff;/*滚动条的背景颜色*/  }  
+/*定义滑块 内阴影+圆角*/  
+.kcw-side-scroll1::-webkit-scrollbar-thumb  {border-radius: 4px;  /*滚动条的圆角*/-webkit-box-shadow: inset 0 0 6px rgba(255, 255, 255, 0.3); background-color: rgb(196, 202, 196);  /*滚动条的背景颜色*/}
+
+</style>
+<body>
+<div id="app" style="background:#FFF">
+    <el-tabs tab-position="left" v-model="activeName" @tab-click="handleClick" :style="'height: '+(winheight)+'px;'">
+		<el-tab-pane name="base" label="基本配置">
+			<div class="kcw-side-scroll" :style="'overflow:auto;height: '+(winheight-40)+'px;'">
+				<el-form size="mini" ref="form" :model="data.base" label-width="160px">
+					<el-form-item label="bind">
+						<el-input v-model="data.base.bind" style="width:140px"></el-input> 绑定IP
+					</el-form-item>
+					<el-form-item label="port">
+						<el-input v-model="data.base.port" style="width:80px"></el-input> 端口
+					</el-form-item>
+					<el-form-item label="timeout">
+						<el-input v-model="data.base.timeout" style="width:80px"></el-input> 空闲连接超时时间,0表示不断开
+					</el-form-item>
+					<el-form-item label="maxclients">
+						<el-input v-model="data.base.maxclients" style="width:80px"></el-input> 最大连接数
+					</el-form-item>
+					<el-form-item label="databases">
+						<el-input v-model="data.base.databases" style="width:80px"></el-input> 数据库数量
+					</el-form-item>
+					<el-form-item label="requirepass">
+						<el-input v-model="data.base.requirepass" style="width:120px"></el-input> redis密码,留空代表没有设置密码
+					</el-form-item>
+					<el-form-item label="maxmemory">
+						<el-input v-model="data.base.maxmemory" style="width:80px"></el-input> MB,最大使用内存，0表示不限制
+					</el-form-item>
+				</el-form>
+				<el-button @click="base(1)" size="mini" type="success">保存</el-button>
+			</div>
+		</el-tab-pane>
+		<!-- <el-tab-pane name="test" label="持久化配置">持久化配置</el-tab-pane> -->
+		<el-tab-pane name="conf" label="配置文件">
+			<pre id="conf" contenteditable="true" :style="'border:1px solid #CCC;width:98%;height:'+(winheight-30)+'px;overflow:auto'">{{data.conf}}</pre>
+			<el-button @click="conf(1)" size="mini" type="success">保存</el-button>
+			<span style="color:#CCC;font-size:12px">修改后重启redis生效</span><br>
+		</el-tab-pane>
+	</el-tabs>
+</div>
+</body>
+<script>
+var vm = new Vue({
+	el: '#app',
+	data: {
+		winheight:document.documentElement.clientHeight,
+		winwidth:document.documentElement.clientWidth,
+		activeName:"base",
+		data:{
+			base:{
+				bind:'127.0.0.1',port:'6379',timeout:'0',maxclients:'10000',databases:'16',requirepass:'',maxmemory:'0'
+			},
+			conf:''
+		},
+		url:'/software/redis',
+		id:"${id}",
+    },
+    mounted(){
+		self=this
+		self.base()
+    },
+    methods: {
+		base(is_upd=0){
+			self=this
+			self.post(self.url+"/base/"+self.id+"/"+is_upd,self.data.base,'请稍后...').then(res => {
+				if (res.data.bind && is_upd==0){
+					self.data.base=res.data
+				}
+			})
+		},
+		conf(is_upd=0){
+			self=this
+			text=document.getElementById('conf').innerHTML;
+			self.post(self.url+"/conf/"+self.id+"/"+is_upd,{text:text},'请稍后...').then(res => {
+				if (res.data && is_upd==0){
+					self.data.conf=res.data
+				}
+			})
+		},
+		handleClick(tab, event) {
+			self=this
+			if (self.activeName=='base'){
+				self.base()
+			}else if (self.activeName=='conf'){
+				self.conf()
+			}
+		}
+    }
+});
+</script>
+</html>

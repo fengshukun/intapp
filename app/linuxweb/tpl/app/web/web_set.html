@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+<html>
+<head>
+	<meta charset="utf-8" />
+	<title>kcw-linux控制板</title>
+	<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
+	<meta name="HandheldFriendly" content="true"/>
+	<meta name="MobileOptimized" content="320"/>
+	<link rel="stylesheet" href="${static['static']}/element-ui/2.4.11/lib/theme-chalk/index.css"/>
+	<link rel="stylesheet" href="${static['static']}/font/font-awesome-4.7.0/css/font-awesome.min.css"/>
+	<link rel="stylesheet" href="/css/default.css"/>
+	<script src="${static['static']}/vue/2.6.10/vue.min.js"></script>
+	<script src="${static['static']}/element-ui/2.4.11/lib/index.js"></script>
+	<script src="${static['static']}/axios/0.18.0/axios.min.js"></script>
+	<script src="${static['static']}/qs/6.5.2/qs.min.js"></script>
+	<script src="${static['static']}/static/js/md5.min.js"></script>
+	<script src="/js/function.js"></script>
+</head>
+<style>
+*{padding:0px;margin:0px}
+.el-header, .el-footer {
+    background-color: #B3C0D1;
+    line-height: 60px;
+    padding:0px;
+    }
+.kcw-side-scroll::-webkit-scrollbar{width:0px}
+</style>
+<body>
+<div id="app" style="background:#FFF">
+    <el-tabs tab-position="left" :style="'height: '+(winheight)+'px;'">
+	<el-tab-pane label="基本配置">
+		<el-form ref="form" :model="data" label-width="80px" label-position="left">
+			<el-form-item label="网站目录">
+				<el-input placeholder="网站目录" v-model="data.baseinfo.path"></el-input>
+			</el-form-item>
+			<el-form-item label="网站端口">
+				<el-input placeholder="端口" v-model="data.baseinfo.port" style="width:80px"></el-input>
+			</el-form-item>
+			<el-form-item label="php版本">
+				<el-select v-model="data.baseinfo.phpeditionath" placeholder="php版本">
+					<el-option v-for="item,index in data.phpeditionath"  :label="item.title" :value="item.title"></el-option>
+					<el-option label="纯静态" value="static"></el-option>
+					<el-option label="vue项目" value="vue"></el-option>
+				</el-select>
+			</el-form-item>
+			<el-form-item label="上传限制">
+				<el-input placeholder="上传限制" v-model="data.baseinfo.client_max_body_size" style="width:80px"></el-input>M
+			</el-form-item>
+		</el-form>
+		<span style="color:#CCC;font-size:12px">修改配置后重启nginx生效<i class="fa fa-reddit" aria-hidden="true"></i></span><br><br>
+		<el-button @click="updconfs" size="mini" type="success">保存</el-button>
+	</el-tab-pane>
+	<el-tab-pane label="域名配置">
+		<el-input type="textarea" :autosize="{ minRows: (winheight/40), maxRows: (winheight/40)}" placeholder="域名信息，支持多个域名，以英文逗号分隔" v-model="data.baseinfo.domain"></el-input>
+		<span style="color:#CCC;font-size:12px">支持多个域名，以换行符分隔，懂了吗，修改配置后重启nginx生效<i class="fa fa-reddit" aria-hidden="true"></i></span><br><br>
+		<el-button @click="updconfs" size="mini" type="success">保存</el-button>
+	</el-tab-pane>
+	<el-tab-pane label="负载均衡">
+		<div :style="'overflow:auto;height:'+(winheight-30)+'px'">
+				<table style="width:100%">
+						<tr><td width="160px"></td><td width="80px"></td><td></td><td width="40"></td></tr>
+						<tr v-for="item,index in balancing">
+							<td><el-input placeholder="ip" v-model="item.ip"></el-input><span style="color:#CCC;float:right">&nbsp</span></td>
+							<td><el-input placeholder="端口" v-model="item.port"></el-input><span style="color:#CCC;float:right">&nbsp</span></td>
+							<td>
+								<el-select placeholder="请选择" v-model="item.type" style="width:36%">
+									<el-option key="key" label="weight 主要负载" value="weight"> </el-option>
+									<el-option key="key" label="down 临时不參与负载" value="down"> </el-option>
+									<el-option key="key" label="backup 备用负载" value="backup"> </el-option>
+								</el-select>
+								<span v-if="item.type=='weight'">
+									<el-input placeholder="权重数字越大，负载的权重就越大" v-model="item.val" style="width:62%"></el-input>
+									<span style="color:#CCC;float:right">只能输入数字</span>
+								</span>
+								<div v-else>&nbsp</div>
+							</td>
+							<td><el-button @click="balancing.splice(index,1)" size="small" type="danger" icon="el-icon-delete" circle title="删除"></el-button></td>
+						</tr>
+					</table>
+					<span style="color:#CCC;font-size:12px">增加负载均衡后当前站点项目的资源无法访问，修改配置后重启nginx生效<i class="fa fa-reddit" aria-hidden="true"></i></span><br><br>
+		</div>
+		<el-button @click="addbalancing" size="mini" icon="fa fa-plus" title="添加负载均衡信息"></el-button>
+		<el-button @click="updconfs" size="mini" type="success">保存</el-button>
+	</el-tab-pane>
+	<!-- <el-tab-pane label="SSL">
+			SSL
+	</el-tab-pane> -->
+	<el-tab-pane label="SSL">
+		<div style="width:50%;float:left">
+				密钥(KEY)
+			<el-input type="textarea" :autosize="{ minRows: (winheight/56), maxRows: (winheight/28)}" placeholder="密钥(KEY)" v-model="data.key"></el-input>
+		</div>
+		<div style="width:50%;float:left">
+				证书(PEM格式)
+			<el-input type="textarea" :autosize="{ minRows: (winheight/56), maxRows: (winheight/28)}" placeholder="证书(PEM格式)" v-model="data.pem"></el-input>
+		</div>
+		<el-button @click="updssl" size="mini" type="success">保存</el-button><br>
+	</el-tab-pane>
+	<el-tab-pane label="伪静态">
+		<el-select v-model="data.pseudo_static.text" placeholder="请选择伪静态">
+			<el-option
+				v-for="item in data.pseudo_static.tpl" :key="item.text" :label="item.name" :value="item.text">
+			</el-option>
+		</el-select>
+		<el-input type="textarea" :autosize="{ minRows: (winheight/36), maxRows: (winheight/36)}" placeholder="伪静态" v-model="data.pseudo_static.text"></el-input>
+		<el-button @click="updconf('/conf/vhost/rewrite/'+data.baseinfo.only,data.pseudo_static.text)" size="mini" type="success">保存</el-button><br>
+		<span style="color:#CCC;font-size:12px">选择伪静态模板就可以了，修改了记得要保存哦！重启nginx生效</span>
+	</el-tab-pane>
+	<el-tab-pane label="配置文件">
+		<el-input type="textarea" :autosize="{ minRows: (winheight/28), maxRows: (winheight/28)}" placeholder="配置信息" v-model="data.configinfo"></el-input>
+		<el-button @click="updconf('/conf/vhost/'+data.baseinfo.only+'.conf',data.configinfo)" size="mini" type="success">保存</el-button>
+		<span style="color:#CCC;font-size:12px">该配置文件只对该网站有效，修改后重启nginx生效</span><br>
+	</el-tab-pane>
+	<!-- <el-tab-pane label="响应日志">
+		<el-button @click="updconf(data.accesspath,'');data.access=''" size="mini">清空日志</el-button>
+		<pre :style="'color:#CCCCCC;background:#1E1E1E;height:'+(winheight-30)+'px;overflow:auto'" v-html="data.access"><pre>
+		
+	</el-tab-pane> -->
+	</el-tabs>
+</div>
+</body>
+<script>
+var vm = new Vue({
+	el: '#app',
+	data: {
+		winheight:document.documentElement.clientHeight,
+		id:"${id}",
+		data:{
+			baseinfo:{},
+			configinfo:'',
+			pseudo_static:{},
+			phpeditionath:[],
+			pem:'',
+			key:''
+		},
+		upddata:{ //要更新的信息
+			id:"${id}",
+			filepath:'base',
+			phpeditionath:'',
+			domain:'',
+			path:'',
+			balancing:[],
+			text:'',
+		},
+		balancing:[
+			// {ip:'',port:'',type:'weight',val:1},
+		],
+		// phpeditionath:[],
+	},
+	mounted(){
+		self=this
+		window.onresize = function(){
+			self.winheight=document.documentElement.clientHeight
+		}
+		self.get('/app/web/webinfo/'+self.id).then(res => {
+			self.data=res.data
+			if (res.data.balancing.length){
+				self.balancing=res.data.balancing
+			}
+			// self.get('/index/home/getinfo').then(res => {
+			// 	self.sysinfo=res.data
+			// 	self.post('/index/home/select/software',{'where':"title like 'php%' and status >=4 and platform = '"+self.sysinfo.uname[0]+"'","field":'id,title'}).then(res => {
+			// 		self.phpeditionath=res.data
+			// 	})
+			// })
+		})
+	},
+	methods: {
+		addbalancing(){
+			self=this
+			self.balancing.push({ip:'',port:'',type:'weight',val:1})
+		},
+		//#更新基本信息、域名信息，负载均衡信息
+		updconfs(){
+			self=this
+			self.upddata.domain=self.data.baseinfo.domain
+			self.upddata.port=self.data.baseinfo.port
+			self.upddata.path=self.data.baseinfo.path
+			self.upddata.balancing=self.balancing
+			self.upddata.phpeditionath=self.data.baseinfo.phpeditionath
+			self.upddata.client_max_body_size=self.data.baseinfo.client_max_body_size
+			self.post('/app/web/updconf',self.upddata,'请稍后...').then(res => {
+				self.$message({message:res.msg});
+			})
+		},
+		//更新伪静态和当前配置文件
+		updconf(filepath,text){
+			self=this
+			self.post('/app/web/updconf',{
+				id:self.id,
+				filepath:filepath,
+				text:text
+			},'请稍后...').then(res => {
+				self.$message({message:res.msg});
+			})
+		},
+		updssl(){
+			self=this
+			self.post('/app/web/ssl/'+self.id,{
+				key:self.data.key,
+				pem:self.data.pem
+			},'请稍后...').then(res => {
+				self.$message({message:res.msg});
+			})
+		}
+    }
+})
+</script>
+</html>

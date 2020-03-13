@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+<html>
+<head>
+	<meta charset="utf-8" />
+	<title>kcw-linux控制板</title>
+	<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
+	<meta name="HandheldFriendly" content="true"/>
+	<meta name="MobileOptimized" content="320"/>
+	<link rel="stylesheet" href="${static['static']}/element-ui/2.4.11/lib/theme-chalk/index.css"/>
+	<link rel="stylesheet" href="${static['static']}/font/font-awesome-4.7.0/css/font-awesome.min.css"/>
+	<link rel="stylesheet" href="/css/default.css"/>
+	<script src="${static['static']}/vue/2.6.10/vue.min.js"></script>
+	<script src="${static['static']}/element-ui/2.4.11/lib/index.js"></script>
+	<script src="${static['static']}/axios/0.18.0/axios.min.js"></script>
+	<script src="${static['static']}/qs/6.5.2/qs.min.js"></script>
+	<script src="${static['static']}/static/js/md5.min.js"></script>
+	<script src="/js/function.js"></script>
+</head>
+<style>
+*{padding:0px;margin:0px}
+.el-header, .el-footer {
+    background-color: #B3C0D1;
+    line-height: 60px;
+    padding:0px;
+    }
+.kcw-side-scroll::-webkit-scrollbar{width:0px}
+</style>
+<body style="background:#FFF">
+<div id="app">
+    <el-tabs v-model="activeName1" @tab-click="handleClick">
+		<el-tab-pane name="intapp" label="控制板">
+			<table style="margin-left:10%">
+			 <tr v-for="item in form1">
+			 	 <td>{{item['title']}}</td>
+				 <td><el-input v-model="item['value']" style="width:280px"></el-input></td>
+			</tr>
+			</table><el-button @click="updintapp()" style="margin-left:10%" type="success" size="mini">确定</el-button>
+		</el-tab-pane>
+		<el-tab-pane name="system" label="系统">
+			<el-tabs tab-position="left" :style="'height: '+(winheight-60)+'px;'">
+				<el-tab-pane label="swap内存">
+					<div style="margin-left:100px">
+						<el-input size="mini" placeholder="MB" v-model="system.swap.value" style='width:180px'>
+							<template slot="append">MB</template>
+						</el-input>
+						<div style="margin-top:20px"><el-button @click="set_swap()" type="success" size="mini">初始化</el-button></div>
+					</div>
+				</el-tab-pane>
+				<el-tab-pane label="防火墙">
+					<span style="float:left">&nbsp&nbsp防火墙状态：<el-switch @change='firewallstatus' v-model="system.firewall.firewallstatus" active-value="1" inactive-value="0"></el-switch>
+					</span>
+					<el-input size="mini" v-model="firewallport" placeholder="放行端口" style="float:left;margin-left:10px;width:80px"></el-input>
+					<el-input size="mini" v-model="firewalldescribes" placeholder="备注" style="float:left;margin-left:10px;width:80px"></el-input>
+					&nbsp&nbsp&nbsp&nbsp<el-button v-if="system.firewall.firewallstatus=='1'" @click="firewall('')" type="success" size="mini">添加</el-button>
+					<el-table v-if="system.firewall" :data="system.firewall.list" :height="winheight-126">
+						<el-table-column prop="port" label="放行端口" width="100"></el-table-column></el-table-column>
+						<el-table-column prop="describes" label="备注" width="100"></el-table-column></el-table-column>
+						<el-table-column prop="addtime" label="添加时间">
+							<template slot-scope="scope">
+								{{time_date(scope.row.addtime,true)}}
+							</template>
+						</el-table-column>
+						<el-table-column prop="addtime" label="" width="180">
+							<template slot-scope="scope">
+								<el-button v-if="system.firewall.firewallstatus=='1'" @click="firewall(scope.row.id)" size="mini" type="danger" icon="el-icon-delete" circle></el-button>
+							</template>
+						</el-table-column>
+					</el-table>
+					<div class="block" style="background:#FFF;margin-top:4px;height:36px;padding-top:4px">
+						<el-pagination
+							@current-change="get_start_handleCurrentChange1"
+							current-page="1" :page-size="system.firewall.pagesize"
+							layout="total, prev, pager, next, jumper" :total="system.firewall.count">
+						</el-pagination>
+					</div>
+				</el-tab-pane>
+			</el-tabs>
+		</el-tab-pane>
+		<el-tab-pane name="start"  label="控制板启动执行命令">
+			<div>
+				<el-input type="textarea" v-model="command.command" :autosize="{ minRows: 1, maxRows: 3}" placeholder="请输入控制板在启动时要执行的命令" style="float:left;width:300px"></el-input>
+				<el-input type="textarea" v-model="command.describes" :autosize="{ minRows: 1, maxRows: 3}" placeholder="备注" style="margin-left:10px;float:left;width:300px"></el-input>
+				&nbsp&nbsp&nbsp&nbsp<el-button @click="start()" type="success" size="small">添加</el-button>
+			</div>
+			<el-table v-if="command.list" :data="command.list" :height="winheight-162" @selection-change="handleSelectionChange">
+				<el-table-column prop="command" label="执行命令" width="300"></el-table-column>
+				<el-table-column prop="status" label="状态" width="120">
+					<template slot-scope="scope">
+						<el-tag v-if="scope.row.status==1" type="success">已执行</el-tag>
+						<span v-else-if="scope.row.status==0" >未执行</span>
+					</template>
+				</el-table-column>
+				<el-table-column prop="addtime" label="添加时间" width="180">
+					<template slot-scope="scope">
+						{{time_date(scope.row.addtime,true)}}
+					</template>
+				</el-table-column>
+				<el-table-column prop="describes" label="备注"></el-table-column>
+				<el-table-column prop="addtime" label="" width="180">
+					<template slot-scope="scope">
+						<el-button v-if="scope.row.describes!='系统创建,请务删除'" @click="start(scope.row.id)" size="mini" type="danger" icon="el-icon-delete" circle></el-button>
+					</template>
+				</el-table-column>
+			</el-table>
+			<div class="block" style="background:#FFF;margin-top:4px;height:36px;padding-top:4px">
+                <el-pagination
+					@current-change="get_start_handleCurrentChange"
+                    current-page="1" :page-size="command.pagesize"
+                    layout="total, prev, pager, next, jumper" :total="command.count">
+                </el-pagination>
+            </div>
+		</el-tab-pane>
+	</el-tabs>
+</div>
+</body>
+<script>
+var vm = new Vue({
+	el: '#app',
+	data: {
+		winheight:document.documentElement.clientHeight,
+		winwidth:document.documentElement.clientWidth,
+		activeName1:'start',
+		form1:[],
+		form3:{
+			'status':true,
+			'list':[
+				// {port:'[20000-30000]',status:1,'descs':'外部端口',addtime:'1576727008'}
+			]
+		},command:{
+			describes:'',command:'',
+			list:[]
+		},system:{
+			swap:{},
+			firewall:{}
+		},
+		firewallport:'',//放行端口
+		firewalldescribes:'' //备注
+	},
+	mounted(){
+		self=this
+		window.onresize = function(){
+			self.winheight=document.documentElement.clientHeight
+			self.winwidth=document.documentElement.clientWidth
+		}
+		self.get_start()
+	},
+	methods: {
+		start(id=0){
+			self=this
+			if(id){
+				self.post("/index/setup/start/"+id,{},'请稍后...').then(res => {
+					if (res.code==0){
+						self.get_start()
+					}
+				})
+			}else{
+				self.post("/index/setup/start",{describes:self.command.describes,command:self.command.command}).then(res => {
+					if (res.code==0){
+						self.get_start()
+					}
+				})
+			}
+		},
+		get_start(pagenow=1){
+			self=this
+			self.get("/index/setup/get_start",{pagenow:pagenow}).then(res => {
+				if (res.code==0){
+					self.command=res.data
+				}
+			})
+		},
+		get_start_handleCurrentChange(val) {
+			self.get_start(val)
+		},
+		//防火墙列表
+		get_firewall(){
+			self.get("/index/setup/get_firewall").then(res => {
+				if (res.code==0){
+					self.system.firewall=res.data
+				}
+			})
+		},
+		get_start_handleCurrentChange1(val) {
+			self.get_firewall(val)
+		},
+		set_swap(){
+			self=this
+			self.post("/index/setup/set_swap/"+self.system.swap.value,null,'初始化中...').then(res => {
+				if (res.code==0){
+					self.$message({type: 'success',message: '成功'});
+				}
+			})
+		}
+		,updintapp(){
+			self=this
+			self.post("/index/setup/intapp/",self.form1,'请稍后...').then(res => {
+				if (res.code==0){
+					self.$message({type: 'success',message: '成功'});
+				}
+			})
+		}
+		//防火墙开关
+		,firewallstatus(callback){self=this
+			self.post("/index/setup/firewallstatus/"+callback,{},'请稍后...').then(res => {
+				if (res.code==0){
+					self.$message({type: 'success',message: '成功'});
+				}
+			})
+		}
+		//添加/删除 防火墙
+		,firewall(id=0,port='80'){self=this
+			// alert(self.firewallport)
+			self.post("/index/setup/firewall/"+id,{port:self.firewallport,describes:self.firewalldescribes},'请稍后...').then(res => {
+				if (res.code==0){
+					self.$message({type: 'success',message: '成功'});
+				}
+			})	
+			self.get_firewall()
+		}
+		,handleSelectionChange(){
+
+		}
+		,handleClick(tab, event){
+			self=this
+			if (self.activeName1=='system'){
+				self.get("/index/setup/get_swap").then(res => {
+					if (res.code==0){
+						self.system.swap=res.data
+					}
+				})
+				//防火墙列表
+				self.get("/index/setup/get_firewall").then(res => {
+					if (res.code==0){
+						self.system.firewall=res.data
+					}
+				})
+			}else if(self.activeName1=='intapp'){
+				self.get("/index/setup/intapp").then(res => {
+					if (res.code==0){
+						self.form1=res.data
+					}
+				})
+			}
+		}
+    }
+})
+</script>
+</html>

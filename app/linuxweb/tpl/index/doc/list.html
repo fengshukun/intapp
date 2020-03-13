@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+<html>
+<head>
+	<meta charset="utf-8" />
+	<title>kcw-linux控制板</title>
+	<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
+	<meta name="HandheldFriendly" content="true"/>
+	<meta name="MobileOptimized" content="320"/>
+	<link rel="stylesheet" href="${static['static']}/element-ui/2.4.11/lib/theme-chalk/index.css"/>
+	<link rel="stylesheet" href="${static['static']}/font/font-awesome-4.7.0/css/font-awesome.min.css"/>
+	<link rel="stylesheet" href="/css/default.css"/>
+	<script src="${static['static']}/vue/2.6.10/vue.min.js"></script>
+	<script src="${static['static']}/element-ui/2.4.11/lib/index.js"></script>
+	<script src="${static['static']}/axios/0.18.0/axios.min.js"></script>
+	<script src="${static['static']}/qs/6.5.2/qs.min.js"></script>
+	<script src="${static['static']}/static/js/md5.min.js"></script>
+	<script src="/js/function.js"></script>
+<style>
+	a{text-decoration:none;color:#000}
+</style>
+</head> 
+<body>
+<div id="app">
+	<iframe v-if="is_url(iframeurl)" id="iframe" :src="iframeurl" style="margin-left:1px;margin-top:1px" frameborder="0"  width="99.9%" v-bind:height="(winheight-143)+'px'"></iframe>
+	<div v-else>
+			<div style="height:38px;padding-top:0px;background:#FFF;padding-top:10px;margin:10px auto;width:98%">
+					&nbsp&nbsp&nbsp<el-input size="mini" style="width:200px" placeholder="文档名称" v-model="kw"></el-input>
+					<el-button size="mini" @click="data.pagenow=1;obtain()" icon="el-icon-search">搜索</el-button>
+					&nbsp&nbsp&nbsp<el-button size="mini" @click="adddialog={status:true,title:'新建项目'},item={pid:0,icon:'',title:'',describes:'',addtime:'',updtime:'',defaults:0}">新建项目</el-button>
+			</div>
+			<div style="margin:10px auto;width:98%">
+				<el-table :data="data.list" :height="winheight-126" @selection-change="handleSelectionChange">
+					<el-table-column type="selection" width="55"></el-table-column>
+					<el-table-column fixed prop="id" label="编号" width="100"></el-table-column>
+					<el-table-column prop="title" label="名称" width="180">
+						<template slot-scope="scope">
+								<a :href="'/index/index/doc/docde/'+scope.row.id" v-html="scope.row.title"></a>
+						</template>
+					</el-table-column>
+					<el-table-column prop="describes" label="描述">
+						<template slot-scope="scope">
+								<a :href="'/index/index/doc/docde/'+scope.row.id" v-html="scope.row.describes"></a>
+						</template>
+					</el-table-column>
+					<el-table-column prop="addtime" label="添加时间" width="100">
+						<template slot-scope="scope">
+							<span v-html="time_date(scope.row.addtime)"></span>
+						</template>
+					</el-table-column>
+					<el-table-column prop="updtime" label="更新时间" width="100">
+						<template slot-scope="scope">
+							<span v-html="time_date(scope.row.updtime)"></span>
+						</template>
+					</el-table-column>
+					<el-table-column fixed="right" label="操作" width="220">
+						<template slot-scope="scope">
+							<a  target="_blank" :href="'/index/index/doc/docde/'+scope.row.id"><el-button size="small">预览</el-button></a>
+							<a :href="'/index/index/doc/docedit/'+scope.row.id"><el-button size="small">管理</el-button></a>
+							<el-button @click="self.adddialog.status=true,self.item=scope.row" size="small">编辑</el-button>
+						</template>
+					</el-table-column>
+				</el-table>
+				<div class="block" style="background:#FFF;margin-top:4px;height:36px;padding-top:4px">
+					<span style="float:left;margin-top:2px">&nbsp&nbsp&nbsp<el-button @click=del size="mini" type="danger" icon="el-icon-delete">删除选中</el-button>&nbsp</span>
+					<el-pagination
+						@size-change="handleSizeChange" @current-change="handleCurrentChange"
+						:current-page="currentPage" :page-size="data.pagesize"
+						layout="total, sizes, prev, pager, next, jumper" :total="data.count">
+					</el-pagination>
+				</div>
+			</div>
+	</div>
+
+	<el-dialog
+	:title="adddialog.title"
+	:visible.sync="adddialog.status"
+	width="500px">
+	<el-form ref="form" :model="item" label-width="80px" label-position="left">
+	<el-form-item label="标题">
+		<el-input placeholder="标题" v-model="item.title"></el-input>
+	</el-form-item>
+	<el-form-item label="描述">
+		<el-input placeholder="描述" v-model="item.describes"></el-input>
+	</el-form-item>
+	</el-form>
+	<span slot="footer" class="dialog-footer">
+		<el-button @click="adddialog.status = false">取 消</el-button>
+		<el-button v-if="item.id" type="primary" @click="upd">修改</el-button>
+		<el-button v-else type="primary" @click="add">添加</el-button>
+	</span>
+	</el-dialog>
+
+</div>
+<script>
+new Vue({
+	el: '#app',
+	data() {
+      return {
+		winheight:document.documentElement.clientHeight,
+		winwidth:document.documentElement.clientWidth,
+		data:{
+			'pagesize':20,
+			'count':1,
+			'pagenow':1,
+			'list':[]
+		},
+		item:{pid:0,icon:'',title:'',describes:'',addtime:'',updtime:'',defaults:0},adddialog:{status:false,title:'新增文档'},
+		adminChange:[],
+		currentPage: 5,
+		url:'/index/doc',
+		kw:null,
+		iframeurl:''
+      };
+    },
+	mounted(){
+		self=this
+		window.onresize = function(){
+			self.winheight=document.documentElement.clientHeight
+			self.winwidth=document.documentElement.clientWidth
+		}
+		self.obtain()
+	},
+	methods: {
+		obtain(){
+			self=this
+			self.get(self.url+"/get",{'kw':self.kw,'pagesize':self.data.pagesize,'pagenow':self.data.pagenow},'获取中...').then(res => {
+				self.data=res.data
+			})
+		},
+		add(){
+			self=this
+			self.post(self.url+"/add",self.item,"请稍后...").then(res => {
+				self.adddialog.status=false
+				self.obtain()
+			})
+		},
+		upd(){
+			self=this
+			// self.admin['password']=md5('kcw'+self.admin['password'])
+			self.post(self.url+"/upd",self.item,"请稍后...").then(res => {
+				self.adddialog.status=false
+				// self.obtain()
+			})
+		},
+        del(){
+			self=this
+			if(!self.adminChange.length){
+				self.$message.error('您未选择任何内容');
+			}else{
+				self.$confirm('此操作将永久删除该记录, 是否继续?', '删除提醒', {
+				confirmButtonText: '删除',
+				cancelButtonText: '取消',
+				type: 'warning'
+				}).then(() => {
+					id=[]
+					for(var i=0;i<self.adminChange.length;i++){
+						id.push(self.adminChange[i].id)
+					}
+					self.post(self.url+"/delete",id,"正在删除中...").then(res => {
+						self.data.pagenow=1
+						self.obtain()
+						self.$message({type: 'success',message: '选中记录已删除!'});
+					})
+				}).catch(() => {});
+			}
+		},
+		handleSelectionChange(val) {
+			this.adminChange=val
+		},
+		handleSizeChange(val) {
+			self.data.pagesize=val
+			self.obtain()
+		},
+		handleCurrentChange(val) {
+			self.data.pagenow=val
+			self.obtain()
+		}
+    }
+});
+</script>
+</body>

@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+<html>
+<head>
+	<meta charset="utf-8" />
+	<title>${intapp[0]['value']}</title>
+	<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
+	<meta name="HandheldFriendly" content="true"/>
+	<meta name="MobileOptimized" content="320"/>
+	<link rel="stylesheet" href="${static['static']}/element-ui/2.4.11/lib/theme-chalk/index.css"/>
+	<link rel="stylesheet" href="${static['static']}/font/font-awesome-4.7.0/css/font-awesome.min.css"/>
+	<link rel="stylesheet" href="/css/default.css"/>
+	<script src="${static['static']}/vue/2.6.10/vue.min.js"></script>
+	<script src="${static['static']}/element-ui/2.4.11/lib/index.js"></script>
+	<script src="${static['static']}/axios/0.18.0/axios.min.js"></script>
+	<script src="${static['static']}/qs/6.5.2/qs.min.js"></script>
+	<script src="${static['static']}/static/js/md5.min.js"></script>
+	<script src="/js/function.js"></script>
+</head>
+<body>
+	<div id="app" style="padding:0px;margin:0px">
+		<div v-bind:style="'background:url(/images/background/kcwback.gif) no-repeat #009688;background-size:cover;height:'+winheight+'px;width:100%;'">
+			<div  v-bind:style="'padding-top:'+(winheight/2-260)+'px;'">
+				<div  style="margin:0px auto;background:#FFF;width:360px;height:280px;border-radius:4px">
+					<div style="margin:0px auto;width:260px;"><br>
+						<img src="/images/icon/linux.gif" alt="" style="height:40px;float:left"><h2 style="text-align:right;padding-top:6px;">${intapp[0]['value']}&nbsp&nbsp&nbsp</h2>
+					</div>
+					<div style="margin:20px auto;width:260px;">
+						<el-input v-model="username" placeholder="用户名"></el-input>
+					</div>
+					<div style="margin:10px auto;width:260px;">
+						<el-input type="password" v-model="password" placeholder="登录密码"  autocomplete="off"></el-input>
+					</div>
+					<div style="margin:10px auto;width:260px;">
+						<el-button type="primary" @click="login" style="width:100%;">登录</el-button>
+					</div>
+				</div>
+			</div>
+		</div>
+		
+	</div>
+</body>
+<script>
+var vm = new Vue({
+	el: '#app',
+	data: {
+		winheight:document.documentElement.clientHeight,
+		username:"${username}",
+		password:"${password}"
+	},
+	mounted(){
+		self=this
+		window.onresize = function(){
+			self.winheight=document.documentElement.clientHeight
+		}
+		if(self.username && self.password){
+			self.login()
+		}
+	},
+	methods: {
+		login: function(){
+			var self=this
+			if (self.username==''||self.password==''){
+				self.$message({message: '请输入用户名或密码',type: 'error'});return;
+			}
+			timestamp= Date.parse(new Date())/1000;
+			random=md5('feafwefasas'+timestamp)
+			sign=md5(self.username+md5('kcw'+self.password)+timestamp+random)
+            self.get("/index/public/login/"+self.username+"/"+sign+"/"+timestamp+"/"+random,{},'登录中...').then(res => {
+				if(res.code==0){
+					location.reload()
+				}
+            })
+		}
+	}
+})
+</script>
+</html>

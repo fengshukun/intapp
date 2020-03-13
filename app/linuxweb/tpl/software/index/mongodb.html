@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+<html>
+<head>
+	<meta charset="utf-8" />
+	<title>kcw-linux控制板</title>
+	<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
+	<meta name="HandheldFriendly" content="true"/>
+	<meta name="MobileOptimized" content="320"/>
+	<link rel="stylesheet" href="${static['static']}/element-ui/2.4.11/lib/theme-chalk/index.css"/>
+	<link rel="stylesheet" href="${static['static']}/font/font-awesome-4.7.0/css/font-awesome.min.css"/>
+	<link rel="stylesheet" href="/css/default.css"/>
+	<script src="${static['static']}/vue/2.6.10/vue.min.js"></script>
+	<script src="${static['static']}/element-ui/2.4.11/lib/index.js"></script>
+	<script src="${static['static']}/axios/0.18.0/axios.min.js"></script>
+	<script src="${static['static']}/qs/6.5.2/qs.min.js"></script>
+	<script src="${static['static']}/static/js/md5.min.js"></script>
+	<script src="/js/function.js"></script>
+</head>
+<style>
+*{padding:0px;margin:0px}
+.kcw-side-scroll::-webkit-scrollbar{width:0px}
+.kcw-side-scroll1{overflow-y:auto;}
+.kcw-side-scroll1::-webkit-scrollbar{width: 10px;  /*滚动条宽度*/height: 10px;  /*滚动条高度*/}
+/*定义滚动条轨道 内阴影+圆角*/  
+.kcw-side-scroll1::-webkit-scrollbar-track  {-webkit-box-shadow: inset 0 0 6px rgba(255, 255, 255, 0.3);border-radius: 10px;  /*滚动条的背景区域的圆角*/background-color: #ffffff;/*滚动条的背景颜色*/  }  
+/*定义滑块 内阴影+圆角*/  
+.kcw-side-scroll1::-webkit-scrollbar-thumb  {border-radius: 4px;  /*滚动条的圆角*/-webkit-box-shadow: inset 0 0 6px rgba(255, 255, 255, 0.3); background-color: rgb(196, 202, 196);  /*滚动条的背景颜色*/}
+
+</style>
+<body>
+<div id="app" style="background:#FFF">
+    <el-tabs tab-position="left" v-model="activeName" @tab-click="handleClick" :style="'height: '+(winheight)+'px;font-size:14px'">
+		<el-tab-pane name="key" label="key">
+        <div class="kcw-side-scroll1" :style="'overflow-y:auto;height: '+(winheight-40)+'px'">
+        <el-input type="textarea" :rows="10" placeholder="复制key内容" v-model="data.key"></el-input>
+        <el-button @click="upd_config" size="mini" type="success">保存</el-button>
+        </div>
+        </el-tab-pane>
+        <el-tab-pane v-if="data.key.length" name="configs" label="配置服务">
+        <div class="kcw-side-scroll1" :style="'overflow-y:auto;height: '+(winheight-40)+'px'">
+            config服务 <span style="font-size:12px;color:red">(注：这是一个config服务)</span>
+			<table>
+                <tr v-for="item,index in data.configs.server">
+                    <td><el-input size="mini" placeholder="建议使用局域网ip" v-model="item.ip"></el-input></td><td></td>
+                    <td><el-input size="mini" placeholder="port" v-model="item.port" style="width:80px"></el-input></td>
+                    <td><el-button v-if="data.configs.serverstatus!=1" type="danger" @click="data.configs.server.splice(index,1)" size="mini" icon="fa fa-trash-o" title="删除"></el-button></td>
+                </tr>
+            </table>
+            <span style="font-size:12px;color:red">通常生产环境每台机器应该只有一个，您可以在其他机器上开启config服务后手动添加到副本集中</span><br>
+            <el-button v-if="data.configs.serverstatus!=1" @click="data.configs.server.push({ip:'0.0.0.0',port:''})" size="mini" icon="fa fa-plus" title="增加"></el-button>
+            <div v-if="data.configs.serverstatus==1">
+                <i class="fa fa-play" style="color:#67C23A;"></i>运行中
+                <el-button @click="start_config('stop')" size="mini" type="danger">停止服务</el-button>
+                <el-button @click="start_config('restart')" size="mini" type="success">重启服务</el-button>
+            </div>
+            <div v-else-if="data.configs.serverstatus==0">
+                <i class="fa fa-pause" style="color:red;"></i>已停止
+                <el-button @click="start_config('restart')" size="mini" type="success">启动服务</el-button>
+            </div>
+            <div v-else-if="data.configs.serverstatus==-1">
+                <i class="fa fa-pause" style="color:red;"></i>待初始化
+                <el-button @click="start_config('restart')" size="mini" type="success">初始化</el-button>
+            </div>
+            <br><br>
+            <div v-if="data.configs.serverstatus==1">
+                副本集初始化（如果需要,生产环境应该是内网ip而不是127.0.0.1）<br>
+                <div>
+                <el-input type="textarea" :rows="6" v-model="data.configs.textarea"></el-input>
+                </div>
+增加副本集示例
+<pre class="kcw-side-scroll1" contenteditable="true" style="width:90%;height:60px;border: 1px solid #CDCDCD;color:#555555;padding:10px;">
+mongo --port {{data.configs.server[0]['port']}}
+use admin
+rs.add({_id:1,host:'{{data.get_local_ip}}:27002',priority:2})#增加主机 priority:优先级
+</pre>
+删除副本集示例
+<pre class="kcw-side-scroll1" contenteditable="true" style="width:90%;height:60px;border: 1px solid #CDCDCD;color:#555555;padding:10px;">
+mongo --port {{data.configs.server[0]['port']}}
+use admin
+rs.remove('{{data.get_local_ip}}:27002')
+</pre>
+            </div>
+            <!-- <div v-if="data.configs.serverstatus==1">
+                config副本集 <span style="font-size:12px;color:red">(注：这里可以添加其他机器的mongodb config服务ip和端口，填写的ip能够与当前机器通讯)</span>
+                <table>
+                    <tr v-for="item,index in data.configs.replicaset">
+                        <td><el-input size="mini" placeholder="建议使用局域网ip" v-model="item.ip"></el-input></td><td></td>
+                        <td><el-input size="mini" placeholder="port" v-model="item.port" style="width:80px"></el-input></td>
+                        <td><el-button v-if="data.configs.repinit!=1" type="danger" @click="data.configs.replicaset.splice(index,1)" size="mini" icon="fa fa-trash-o" title="删除"></el-button></td>
+                    </tr>
+                </table>
+                <div v-if="data.configs.repinit!=1">
+                    <el-button type="primary" v-if="data.configs.replicaset.length>0" @click="config_init" size="mini">初始化副本集</el-button>
+                    <el-button type="primary" @click="data.configs.replicaset.push({ip:'',port:''})" size="mini" icon="fa fa-plus" title="增加"></el-button>
+                </div>
+            </div> -->
+        </div>    
+		</el-tab-pane>
+		<el-tab-pane v-if="data.key.length" name="mongos" label="路由服务">
+        <div class="kcw-side-scroll1" :style="'overflow-y:auto;height: '+(winheight-40)+'px'">
+            configdb:<el-input size="mini" placeholder="configdb = configs/192.168.1.101:27001,192.168.1.102:27001,192.168.1.103:27001" v-model="data.mongos.configdb"></el-input>
+            <div style="font-size:12px;color:#CCC">示例：configdb = configs/192.168.1.101:27001,192.168.1.102:27001,192.168.1.103:27001,则无法扩展外部服务器</div>
+            <span style="font-size:12px;color:red">上述ip和端口是已经启动的配置服务，可以是其他机器上的mongodb配置服务</span>
+            <br>
+            路由服务 <span style="font-size:12px;color:red">(注：这是一个路由服务)</span>
+			<table>
+                <tr v-for="item,index in data.mongos.server">
+                    <td><el-input size="mini" placeholder="建议使用局域网ip" v-model="item.ip"></el-input></td><td></td>
+                    <td><el-input size="mini" placeholder="port" v-model="item.port" style="width:80px"></el-input></td>
+                    <td><el-button v-if="data.mongos.serverstatus!=1" type="danger" @click="data.mongos.server.splice(index,1)" size="mini" icon="fa fa-trash-o" title="删除"></el-button></td>
+                </tr>
+            </table>
+            <el-button v-if="data.mongos.serverstatus!=1" @click="data.mongos.server.push({ip:'0.0.0.0',port:''})" size="mini" icon="fa fa-plus" title="增加"></el-button>
+            <br>
+            <div v-if="data.mongos.serverstatus==1">
+                <i class="fa fa-play" style="color:#67C23A;"></i>运行中
+                <el-button @click="start_mongos('stop')" size="mini" type="danger">停止服务</el-button>
+                <el-button @click="start_mongos('restart')" size="mini" type="success">重启服务</el-button>
+            </div>
+            <div v-else-if="data.mongos.serverstatus==0">
+                <i class="fa fa-pause" style="color:red;"></i>已停止
+                <el-button @click="start_mongos('restart')" size="mini" type="success">启动服务</el-button>
+            </div>
+            <div v-else-if="data.mongos.serverstatus==-1">
+                <i class="fa fa-pause" style="color:red;"></i>待初始化
+                <el-button @click="start_mongos('restart')" size="mini" type="success">初始化</el-button>
+            </div>
+            <br>
+            <div v-if="data.mongos.serverstatus==1">
+                初始化用户<br>
+                <div>
+                <el-input type="textarea" :rows="6" v-model="data.mongos.textarea"></el-input>
+                </div>
+                在路由中添加分片，如下示例<br>
+<pre class="kcw-side-scroll1" contenteditable="true" style="width:90%;height:80px;border: 1px solid #CDCDCD;color:#555555;padding:10px;">
+mongo --port {{data.mongos.server[0]['port']}}
+use admin
+db.auth('admin','admin')
+sh.addShard("shard1/192.168.1.101:29001,192.168.1.102:29001") #shard1是分片集群id
+sh.status()
+</pre>
+            </div>
+        </div>
+        </el-tab-pane>
+        <el-tab-pane v-if="data.key.length" name="shard" label="分片服务">
+        <div class="kcw-side-scroll1" :style="'overflow-y:auto;height: '+(winheight-40)+'px'">
+			<div v-for="shard,indexs in data.shard">
+                分片服务名{{indexs+1}}：<el-input size="mini" placeholder="" v-model="shard.servername" style="width:200px"></el-input>
+                <el-button v-if="shard.serverstatus!=1" type="danger" @click="data.shard.splice(indexs,1)" size="mini" icon="fa fa-trash-o" title="删除分片"></el-button>
+                <table>
+                    <tr v-for="item,index in shard.server">
+                        <td><el-input size="mini" placeholder="建议使用局域网ip" v-model="item.ip"></el-input></td><td></td>
+                        <td><el-input size="mini" placeholder="port" v-model="item.port" style="width:80px"></el-input></td>
+                        <td><el-button v-if="shard.serverstatus!=1" type="danger" @click="shard.server.splice(index,1)" size="mini" icon="fa fa-trash-o" title="删除副本集"></el-button></td>
+                    </tr>
+                </table>
+                <span style="font-size:12px;color:red">通常生产环境每台机器应该只有一个，您可以在其他机器上开启分片服务后手动添加到副本集中</span><br>
+                <el-button v-if="shard.serverstatus!=1" @click="shard.server.push({ip:'0.0.0.0',port:''})" size="mini" icon="fa fa-plus" title="增加副本集"></el-button>
+                <div v-if="shard.serverstatus==1">
+                    <i class="fa fa-play" style="color:#67C23A;"></i>运行中
+                    <el-button @click="start_shard('stop')" size="mini" type="danger">停止服务</el-button>
+                    <el-button @click="start_shard('restart')" size="mini" type="success">重启服务</el-button>
+                </div>
+                <div v-else-if="shard.serverstatus==0">
+                    <i class="fa fa-pause" style="color:red;"></i>已停止
+                    <el-button @click="start_shard('restart')" size="mini" type="success">启动服务</el-button>
+                </div>
+                <div v-else-if="shard.serverstatus==-1">
+                    <i class="fa fa-pause" style="color:red;"></i>待初始化
+                    <el-button @click="start_shard('restart')" size="mini" type="success">初始化</el-button>
+                </div>
+                <br><br>
+                <div v-if="shard.serverstatus==1">
+                    副本集初始化（生产环境应该是内网ip而不是127.0.0.1）<br>
+                    <el-input type="textarea" :rows="6" v-model="shard.textarea"></el-input>
+                </div>
+            </div>
+            <el-button @click="add_shard('shard'+(data.shard.length+1)+'_'+data.get_local_ip,data.shard.length)" size="mini" icon="fa fa-plus" title="增加分片"></el-button>
+        </div>
+		</el-tab-pane>
+	</el-tabs>
+</div>
+</body>
+<script>
+var vm = new Vue({
+	el: '#app',
+	data: {
+		winheight:document.documentElement.clientHeight,
+		winwidth:document.documentElement.clientWidth,
+		data:{
+            key:'',
+            get_local_ip:'127.0.0.1',
+            configs:{
+                server:[
+                    {ip:"0.0.0.0",port:'27001'}
+                ],
+                serverstatus:-1,//1运行中  0已停止 -1未配置
+                replicaset:[
+                    {ip:"",port:''}
+                ],
+                // repinit:0,//副本集是否初始化 1是  0否
+                textarea:'mongo --port 27001 \n'+
+                'use admin \n'+
+                'rs.initiate({_id:"configs",members:[\n'+
+                '    {_id:0,host:"127.0.0.1:27001"}\n'+
+                ']})',
+            },
+            mongos:{
+                server:[
+                    {ip:"0.0.0.0",port:'28001'}
+                ],
+                serverstatus:-1,//1运行中  0已停止 -1未配置
+                replicaset:[
+                    {ip:"",port:''}
+                ],
+                // repinit:0,//副本集是否初始化 1是  0否
+                configdb:'configdb = configs/',
+                textarea:"mongo --port 28001\n"+
+                    "use admin\n"+
+                    "db.createUser({\n"+
+                    "user:'admin',pwd:'admin',\n"+
+                    "roles:[\n"+
+                    "    {role:'clusterAdmin',db:'admin'},\n"+
+                    "    {role:'readAnyDatabase',db:'admin'},\n"+
+                    "    {role:'readWriteAnyDatabase',db:'admin'},\n"+
+                    "    {role:'userAdminAnyDatabase',db:'admin'},\n"+
+                    "    {role:'dbAdminAnyDatabase',db:'admin'}\n"+
+                    "]})",
+            },
+            shard:[]
+        },
+        activeName:'key',
+		id:"${id}",
+    },
+    mounted(){
+		self=this
+		self.get_config()
+    },
+    methods: {
+        //添加分片
+        add_shard(name,k){
+            self=this
+            port=2900+(k)*10
+            port=port.toString()+"1"
+            var p={
+                    servername:name,
+                    server:[
+                        {ip:"0.0.0.0",port:port}
+                    ],
+                    serverstatus:-1,//1运行中  0已停止 -1未配置
+                    replicaset:[
+                        {ip:"",port:''}
+                    ],
+                    textarea:'mongo --port '+port+' \n'+
+                    'use admin \n'+
+                    'rs.initiate({_id:"'+name+'",members:[\n'+
+                    '    {_id:0,host:"'+self.data.get_local_ip+':'+port+'"},\n'+
+                    ']})\n'+
+                    '#注意这里的shard与分片服务名要相同\n',
+                }
+            self.data.shard.push(p)
+        },
+		get_config(){
+			self=this
+			self.get("/software/mongodb/get_config/"+self.id,null,'获取中...').then(res => {
+                if (res.data.configs||res.data.mongos||res.data.shard){
+                    self.data=res.data
+                    self.data.configs.textarea='mongo --port 27001 \n'+
+                        'use admin \n'+
+                        'rs.initiate({_id:"configs",members:[\n'+
+                        '    {_id:0,host:"'+res.data.get_local_ip+':27001"}\n'+
+                        ']})';
+                }
+			})
+		},
+        upd_config(){
+			self=this
+			self.post("/software/mongodb/upd_config/"+self.id,self.data,'请稍后...').then(res => {
+                if(res.code==0){
+                    self.$message({type: 'success',message: res.msg});
+                    self.get_config()
+				}
+			})
+		},
+        //启动config服务
+        start_config(types='restart'){
+            self=this
+			self.post("/software/mongodb/start_config/"+types,self.data,'请稍后...').then(res => {
+                if(res.code==0){
+                    if(types=='restart'||types=='start'){
+                        self.data.configs.serverstatus=1
+                    }else if(types=='stop'){
+                        self.data.configs.serverstatus=0
+                    }
+					self.$message({type: 'success',message: res.msg});
+				}
+			})
+        },
+        //启动路由服务
+        start_mongos(types='restart'){
+            self=this
+			self.post("/software/mongodb/start_mongos/"+types,self.data,'请稍后...').then(res => {
+                if(res.code==0){
+                    if(types=='restart'||types=='start'){
+                        self.data.mongos.serverstatus=1
+                    }else if(types=='stop'){
+                        self.data.mongos.serverstatus=0
+                    }
+					self.$message({type: 'success',message: res.msg});
+				}
+			})
+        },
+        //启动分片服务
+        start_shard(types='restart'){
+            self=this
+			self.post("/software/mongodb/start_shard/"+types,self.data,'请稍后...').then(res => {
+                if(res.code==0){
+                    // if(types=='restart'||types=='start'){
+                    //     self.data.shard.serverstatus=1
+                    // }else if(types=='stop'){
+                    //     self.data.shard.serverstatus=0
+                    // }
+                    self.get_config()
+					self.$message({type: 'success',message: res.msg});
+				}
+			})
+        },
+        // //初始化config副本集
+        // config_init(){
+        //     self=this
+		// 	self.post("/software/mongodb/config_init/"+self.id,self.data,'请稍后...').then(res => {
+        //         if(res.code==0){
+        //             self.data.configs.repinit=1
+		// 			self.$message({type: 'success',message: res.msg});
+		// 		}
+		// 	})
+        // },
+        handleClick(tab, event){
+
+        }
+    }
+});
+</script>
+</html>

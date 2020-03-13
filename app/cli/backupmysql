@@ -1,0 +1,173 @@
+#!/usr/bin/env python3.8intapp
+# 备份mysql日志到阿里云oss阿里云 pip3.8 install oss2 -i https://mirrors.aliyun.com/pypi/simple/
+
+#命令参考
+# #全量备份
+# # --flush-logs 为结束当前日志，生成新日志文件；
+# # --delete-master-logs 清除之前的日志，注意，备份之前最好讲日志也增量备份一下
+# # --single-transaction 保证备份的一致性 ，采用会话隔离。
+# mysqldump -uroot -pa3e983d8c9d85b -h127.0.0.1 --all-databases --flush-logs --delete-master-logs --single-transaction | gzip >> /backups/luke/bankapi/mysql/all_databases.sql.gz
+
+# #恢复全部或多库
+# mysql -uroot -pa3e983d8c9d85b -h127.0.0.1  < /backups/luke/bankapi/mysql/all_databases.sql
+# #恢复二进制
+# mysqlbinlog /backups/luke/bankapi/mysql/mysql-bin.000015 |mysql -uroot -pa3e983d8c9d85b -h127.0.0.1
+
+#备份多库 
+# mysqldump -uroot -pa3e983d8c9d85b -h127.0.0.1 --databases bank_gd bank_gf bank_gs bank_hx bank_js bank_jt bank_ms bank_ny bank_pa bank_pf bank_test bank_xy bank_yz bank_zg bank_zs bank_zx qwgjbase > bankdata.sql
+import oss2,sys
+sys.path.append("../../")
+from app.common import *
+try:
+    ttt=sys.argv[1]
+except:
+    print("备份mysql数据库到/backups/mysql 并且上传到阿里云oss “backupmysql backup /backups/mysql 1”，从阿里云对象存储oss下载备份文件到/backups/mysql 并且恢复到mysql数据库 “backupmysql recovery /backups/mysql 1”")
+    exit()
+try:
+    backmysqlpath=sys.argv[2]
+except:
+    backmysqlpath="/backups/mysql" #mysql备份目录  "/backups/luke/bankapi/mysql"
+try:
+    upload_aliyun=sys.argv[3]
+except:
+    upload_aliyun=False
+# print(ttt,backmysqlpath,upload_aliyun)
+# exit()  
+mysqldatapath="/usr/local/mysql/mysql5.7/data" #mysql数据库存放目录
+mysqlpwd='intapppasswordtest'
+mysqlconf=json_decode(file_get_content(config.path['linux_install_path']+"/mysql/mysql5.7/config.conf")) #mysql信息
+aliyunconf=json_decode(file_get_content(config.path['linux_install_path']+"/python/python3.8/lib/python3.8/site-packages/oss2/config")) #阿里云信息
+if mysqlconf:
+    mysqldatapath=mysqlconf['base']['path']
+    mysqlpwd=mysqlconf['base']['rootpassword']
+if aliyunconf:
+    aliyun=aliyunconf
+else:
+    aliyun={
+        "host":"",
+        "bucket":"",
+        "access_key_id":"", 
+        "access_key_secret":"",
+        "myhost":""
+    }
+conf={
+    "mysql":{
+        "username":"root","password":mysqlpwd,"host":"127.0.0.1",#mysql信息
+    },
+    "aliyun":aliyun
+}
+# print(conf['aliyun'])
+if ttt=="backup": #备份数据库
+    if not os.path.exists(backmysqlpath) or not os.path.isfile(backmysqlpath+"/all_databases.sql.gz"):
+        #全量备份
+        os.system("mkdir -p "+backmysqlpath)
+        print("全量备份数据库...")
+        os.system("mysqldump -u"+conf['mysql']['username']+" -p"+conf['mysql']['password']+" -h"+conf['mysql']['host']+" --all-databases --flush-logs --delete-master-logs --single-transaction | gzip >> "+backmysqlpath+"/all_databases.sql.gz")
+    auth = oss2.Auth(conf['aliyun']['access_key_id'], conf['aliyun']['access_key_secret'])
+    bucket = oss2.Bucket(auth, conf['aliyun']['host'], conf['aliyun']['bucket'])
+
+    #复制mysql二进制文件
+    print("备份mysql二进制文件...")
+    t=os.listdir(backmysqlpath)
+    lis=os.listdir(mysqldatapath)
+    maxlist=[]
+    for files in lis:
+        if 'mysql-bin.' in files:
+            try:
+                a=int(files.replace("mysql-bin.", ""))
+                maxlist.append(a)
+            except:pass
+    for files in lis:
+        iscz=True #是否需要复制
+        if iscz:
+            for k in t:
+                if mysqldatapath+"/"+k == mysqldatapath+"/"+files:
+                    iscz=False
+                    print(mysqldatapath+"/"+k+"已存在")
+                    break
+        if not iscz:
+            if 'mysql-bin.' in files:
+                try:
+                    a=int(files.replace("mysql-bin.", ""))
+                    if max(maxlist) == a:
+                        iscz=True
+                        print(mysqldatapath+"/"+files+"该文件是最后一个日志，已备份，（最后一个文件可能不是完整的）")
+                except:pass
+        if iscz:
+            if 'mysql-bin.' in files:
+                try:
+                    a=int(files.replace("mysql-bin.", ""))
+                    os.system("cp -f "+mysqldatapath+"/"+files+" "+backmysqlpath+"/"+files)
+                    print("cp -f "+mysqldatapath+"/"+files+" "+backmysqlpath+"/"+files,"复制成功")
+                except:pass
+    if upload_aliyun:
+        print("上传mysql备份目录文件到阿里云...")
+        t=os.listdir(backmysqlpath)
+        maxlist=[]
+        for files in t:
+            if 'mysql-bin.' in files:
+                try:
+                    a=int(files.replace("mysql-bin.", ""))
+                    maxlist.append(a)
+                except:pass
+        path=get_file(backmysqlpath,is_folder=False)
+        for files in path:
+            paths=files['path'][1:]
+            sc=True #是否需要上传
+            if bucket.object_exists(paths):#如果文件已存在阿里云
+                if 'mysql-bin.' in files['name']:
+                    try:
+                        a=int(files['name'].replace("mysql-bin.", ""))
+                        if max(maxlist) == a:
+                            print(backmysqlpath+"/"+files['name']+"该文件是最后一个日志，所以要上传阿里云")
+                        else:
+                            print("文件已在阿里云oss存在")
+                            sc=False 
+                    except:pass
+                else:
+                    print("文件已在阿里云oss存在")
+                    sc=False 
+            if sc:
+                # print(path) 
+                with open(files['path'], 'rb') as fileobj:
+                        current = fileobj.tell()
+                        bucket.put_object(paths, fileobj)
+                        print("上传文件"+paths,"成功")
+        print("\n\n\n从阿里云oss中还原mysql命令：cd /intapp/app/cli && ./backupmysql recovery "+backmysqlpath+" 1")
+    print("\n\n\n从本地服务器中还原mysql命令：cd /intapp/app/cli && ./backupmysql recovery "+backmysqlpath)
+elif ttt=="recovery": #恢复数据库 
+    if upload_aliyun:
+        print("从阿里云对象存储oss下载mysql备份文件")
+        os.system("rm -rf "+backmysqlpath)
+        auth = oss2.Auth(conf['aliyun']['access_key_id'], conf['aliyun']['access_key_secret'])
+        bucket = oss2.Bucket(auth, conf['aliyun']['host'], conf['aliyun']['bucket'])
+        cmd="mkdir -p "+backmysqlpath+" && cd "+backmysqlpath
+        print(backmysqlpath[1:])
+        for obj in oss2.ObjectIterator(bucket, prefix=backmysqlpath[1:]):
+            url=conf['aliyun']['myhost']+"/"+obj.key
+            cmd+=" && wget "+url
+        print(cmd)
+        os.system(cmd)
+    if os.path.exists(backmysqlpath):
+        if os.path.isfile(backmysqlpath+"/all_databases.sql.gz"):
+            os.system("gzip -d "+backmysqlpath+"/all_databases.sql.gz")
+        if os.path.isfile(backmysqlpath+"/all_databases.sql"):
+            print("恢复mysql数据库：","mysql -u"+conf['mysql']['username']+" -p"+conf['mysql']['password']+" -h"+conf['mysql']['host']+"  < "+backmysqlpath+"/all_databases.sql")
+            os.system("mysql -u"+conf['mysql']['username']+" -p"+conf['mysql']['password']+" -h"+conf['mysql']['host']+"  < "+backmysqlpath+"/all_databases.sql") #恢复全部或多库
+            time.sleep(1)
+        lis=os.listdir(backmysqlpath)
+        lis.sort(key = lambda x: (x[10:]))
+        for files in lis:
+            time.sleep(1)
+            if 'mysql-bin.' in files:
+                try:
+                    a=int(files.replace("mysql-bin.", ""))
+                    print("恢复mysql日志：","mysqlbinlog "+backmysqlpath+"/"+files+" |mysql -uroot -p"+conf['mysql']['password']+" -h"+conf['mysql']['host'])
+                    os.system("mysqlbinlog "+backmysqlpath+"/"+files+" |mysql -uroot -p"+conf['mysql']['password']+" -h"+conf['mysql']['host']) #恢复二进制
+                except:pass
+        print("执行完成")
+    else:
+        print("无法在"+backmysqlpath+"目录下找到mysql备份文件")
+else:
+    print("备份mysql数据库到/backups/mysql “backupmysql backup /backups/mysql”，恢复mysql数据库到/backups/mysql “backupmysql recovery /backups/mysql”")
+    exit()

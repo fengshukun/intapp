@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>kcw-linux控制板</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
+    <meta name="HandheldFriendly" content="true"/>
+    <meta name="MobileOptimized" content="320"/>
+    <link rel="stylesheet" href="${static['static']}/element-ui/2.4.11/lib/theme-chalk/index.css"/>
+    <link rel="stylesheet" href="${static['static']}/font/font-awesome-4.7.0/css/font-awesome.min.css"/>
+    <link rel="stylesheet" href="/css/default.css"/>
+    <script src="${static['static']}/vue/2.6.10/vue.min.js"></script>
+    <script src="${static['static']}/element-ui/2.4.11/lib/index.js"></script>
+    <script src="${static['static']}/axios/0.18.0/axios.min.js"></script>
+    <script src="${static['static']}/qs/6.5.2/qs.min.js"></script>
+    <script src="${static['static']}/static/js/md5.min.js"></script>
+    <script src="${static['static']}/static/js/base64.js"></script>
+    <script src="/js/function.js"></script>
+</head>
+<style>
+*{padding:0px;margin:0px}
+.el-header, .el-footer {
+    background-color: #B3C0D1;
+    line-height: 60px;
+    padding:0px;
+    }
+.kcw-side-scroll::-webkit-scrollbar{width:0px}
+</style>
+<body>
+<div id="app">
+        <div style="height:38px;padding-top:0px;background:#FFF;padding-top:10px;margin:10px auto;width:98%">
+                &nbsp&nbsp&nbsp<el-input size="mini" style="width:200px" placeholder="名称" v-model="kw"></el-input>
+                <el-button size="mini" @click="data.pagenow=1;obtain()" icon="el-icon-search">搜索</el-button>
+                &nbsp&nbsp&nbsp<el-button size="mini" @click="admindialog={status:true,title:'增加服务器'},admin={title:'',describes:'',host:'',port:'22',user:'root',password:'',command:'cd /',icon:'',bgcolor:'#4D4D4D',defaults:0,status:1}">增加服务器</el-button>
+        </div>
+        <div style="margin:10px auto;width:98%">
+            <el-table :data="data.list" :height="winheight-126" @selection-change="handleSelectionChange">
+                <el-table-column type="selection" width="30"></el-table-column>
+                <el-table-column prop="title" label="服务器名称" width="200"></el-table-column>
+                <el-table-column prop="describes" label="备注"></el-table-column>
+                <el-table-column prop="host" label="ip" width="140"></el-table-column>
+                <el-table-column prop="user" label="用户名" width="80"></el-table-column>
+                <el-table-column prop="addtime" label="添加时间" width="100">
+                    <template slot-scope="scope">
+                        <span v-html="time_date(scope.row.addtime)"></span>
+                    </template>
+                </el-table-column>
+                <el-table-column prop="updtime" label="更新时间" width="100">
+                    <template slot-scope="scope">
+                        <span v-html="time_date(scope.row.updtime)"></span>
+                    </template>
+                </el-table-column>
+                <el-table-column fixed="right" label="" width="260">
+                <template slot-scope="scope">
+                    <el-button v-if="scope.row.defaults!=1" @click="setdefs(scope.row.id)" size="small">设默认</el-button>
+                    <el-button @click="self.admindialog.status=true,self.admin=scope.row" size="small">编辑</el-button>
+                    <el-button @click="terminals(scope.row)" size="small">进入终端</el-button>
+                </template>
+                </el-table-column>
+            </el-table>
+            <div class="block" style="background:#FFF;margin-top:4px;height:36px;padding-top:4px">
+                <span style="float:left;margin-top:2px">&nbsp&nbsp&nbsp<el-button @click=del size="mini" type="danger" icon="el-icon-delete">删除选中</el-button>&nbsp</span>
+                <el-pagination
+                    @size-change="handleSizeChange" @current-change="handleCurrentChange"
+                    :current-page="currentPage" :page-size="data.pagesize"
+                    layout="total, sizes, prev, pager, next, jumper" :total="data.count">
+                </el-pagination>
+            </div>
+        </div>
+    
+    <el-dialog
+    :title="admindialog.title"
+    :visible.sync="admindialog.status"
+    width="700px">
+    <el-form ref="form" :model="admin" label-width="80px" label-position="left">
+    <el-form-item label="名称">
+        <el-input placeholder="服务器名称" v-model="admin.title"></el-input>
+    </el-form-item>
+    <el-form-item label="描述">
+        <el-input placeholder="描述" v-model="admin.describes"></el-input>
+    </el-form-item>
+    <el-form-item label="ip">
+        <el-input placeholder="服务器ip" v-model="admin.host"></el-input>
+    </el-form-item>
+    <el-form-item label="端口">
+        <el-input placeholder="如 22" v-model="admin.port"></el-input>
+    </el-form-item>
+    <el-form-item label="用户名">
+        <el-input placeholder="如 root" v-model="admin.user"></el-input>
+    </el-form-item>
+    <el-form-item label="密码">
+        <el-input placeholder="服务器ssh登录密码" v-model="admin.password"></el-input>
+    </el-form-item>
+    <el-form-item label="命令">
+        <el-input placeholder="登录后立即执行的命令" v-model="admin.command"></el-input>
+    </el-form-item>
+    </el-form>
+    <span slot="footer" class="dialog-footer">
+        <el-button @click="admindialog.status = false">取 消</el-button>
+        <el-button v-if="admin.id" type="primary" @click="upd">修改</el-button>
+        <el-button v-else type="primary" @click="add">添加</el-button>
+    </span>
+    </el-dialog>
+    <el-dialog :title="terminal.title" :visible.sync="terminal.status" width="80%" style="overflow: hidden">
+        <iframe :src="terminal.url" style="margin-left:1px;margin-top:1px" frameborder="0"  width="99.9%" v-bind:height="(winheight-340)+'px'"></iframe>
+    </el-dialog>
+</div>
+</body>
+<script>
+new Vue({
+    el: '#app',
+    data() {
+        return {
+            winheight:document.documentElement.clientHeight,
+            winwidth:document.documentElement.clientWidth,
+            data:{
+                'pagesize':20,
+                'count':0,
+                'pagenow':1,
+                'list':[]
+            },
+            admin:{title:'',describes:'',host:'',port:'22',user:'root',password:'',command:'cd /',icon:'',bgcolor:'#4D4D4D',defaults:0,status:1},admindialog:{status:false,title:'添加管理'},
+            adminChange:[],
+            currentPage: 5,
+            url:'/index/terminal',
+            kw:null,
+            terminal:{
+                status:false,url:'',title:''
+            }
+        };
+    },
+    mounted(){
+        self=this
+        window.onresize = function(){
+            self.winheight=document.documentElement.clientHeight
+            self.winwidth=document.documentElement.clientWidth
+        }
+        self.obtain()
+    },
+    methods: {
+        obtain(){
+			self=this
+			self.get(self.url+"/get",{'kw':self.kw,'pagesize':self.data.pagesize,'pagenow':self.data.pagenow},'获取中...').then(res => {
+				self.data=res.data
+			})
+		},
+        terminals(item){
+            self=this
+            // self.terminal.status=true
+            // self.terminal.title=item.user+" "+item.host+":"+item.port+"。"+item.title
+            password=Base64.encode(item.password)
+            self.terminal.url="${config.ssh['url']}?title="+item['title']+"-"+item['describes']+"&hostname="+item.host+"&port="+item['port']+"&username="+item['user']+"&password="+password+"&command="+item.command+"#bgcolor="+item.bgcolor
+            window.open(self.terminal.url)
+        },
+        add(){
+			self=this
+			self.post(self.url+"/add",self.admin,"请稍后...").then(res => {
+				self.admindialog.status=false
+				self.obtain()
+			}).catch(err => {
+                self.admindialog.status=false
+            })
+		},
+		upd(){
+			self=this
+			self.post(self.url+"/put",self.admin,"请稍后...").then(res => {
+				self.admindialog.status=false
+			})
+		},
+		del(){
+			self=this
+			if(!self.adminChange.length){
+				self.$message.error('您未选择任何内容');
+			}else{
+				self.$confirm('此操作将永久删除该记录, 是否继续?', '删除提醒', {
+				confirmButtonText: '删除',
+				cancelButtonText: '取消',
+				type: 'warning'
+				}).then(() => {
+					id=[]
+					for(var i=0;i<self.adminChange.length;i++){
+						id.push(self.adminChange[i].id)
+					}
+					self.post(self.url+"/delete",id,"正在删除中...").then(res => {
+						self.data.pagenow=1
+						self.obtain()
+						self.$message({type: 'success',message: '选中记录已删除!'});
+					})
+				}).catch(() => {});
+			}
+		},
+		//设为默认版本
+		setdefs(id){
+            self.$confirm('确定要设置默认', '提醒', {
+            confirmButtonText: '确定',
+            cancelButtonText: '点错了',
+            type: 'warning'
+            }).then(() => {
+                self.post(self.url+"/setdefs/"+id).then(res => {
+                    self.obtain()
+                })
+            }).catch(() => {});
+			
+		},
+        handleSelectionChange(val) {
+            self=this
+			self.adminChange=val
+		},
+		handleSizeChange(val) {
+            self=this
+			self.data.pagesize=val
+			self.obtain()
+		},
+		handleCurrentChange(val) {
+			self.data.pagenow=val
+			self.obtain()
+		}
+    }
+});
+</script>
+</html>

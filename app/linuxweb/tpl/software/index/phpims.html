@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+<html>
+<head>
+	<meta charset="utf-8" />
+	<title>kcw-linux控制板</title>
+	<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
+	<meta name="HandheldFriendly" content="true"/>
+	<meta name="MobileOptimized" content="320"/>
+	<link rel="stylesheet" href="${static['static']}/element-ui/2.4.11/lib/theme-chalk/index.css"/>
+	<link rel="stylesheet" href="${static['static']}/font/font-awesome-4.7.0/css/font-awesome.min.css"/>
+	<link rel="stylesheet" href="/css/default.css"/>
+	<script src="${static['static']}/vue/2.6.10/vue.min.js"></script>
+	<script src="${static['static']}/element-ui/2.4.11/lib/index.js"></script>
+	<script src="${static['static']}/axios/0.18.0/axios.min.js"></script>
+	<script src="${static['static']}/qs/6.5.2/qs.min.js"></script>
+	<script src="${static['static']}/static/js/md5.min.js"></script>
+	<script src="/js/function.js"></script>
+</head>
+<style>
+*{padding:0px;margin:0px}
+.kcw-side-scroll::-webkit-scrollbar{width:0px}
+.kcw-side-scroll1::-webkit-scrollbar{width: 10px;  /*滚动条宽度*/height: 10px;  /*滚动条高度*/}
+/*定义滚动条轨道 内阴影+圆角*/  
+.kcw-side-scroll1::-webkit-scrollbar-track  {-webkit-box-shadow: inset 0 0 6px rgba(255, 255, 255, 0.3);border-radius: 10px;  /*滚动条的背景区域的圆角*/background-color: #ffffff;/*滚动条的背景颜色*/  }  
+/*定义滑块 内阴影+圆角*/  
+.kcw-side-scroll1::-webkit-scrollbar-thumb  {border-radius: 4px;  /*滚动条的圆角*/-webkit-box-shadow: inset 0 0 6px rgba(255, 255, 255, 0.3); background-color: rgb(196, 202, 196);  /*滚动条的背景颜色*/}
+
+</style>
+<body>
+<div id="app" style="background:#FFF">
+    <el-tabs tab-position="left" v-model="activeName" @tab-click="handleClick" :style="'height: '+(winheight)+'px;'">
+		<el-tab-pane name="base" label="基本配置">
+			<div class="kcw-side-scroll" :style="'overflow:auto;height: '+(winheight-40)+'px;'">
+				<el-form size="mini" ref="form" :model="config.base" label-width="120px">
+					<el-form-item label="authkey">
+						<el-input v-model="config.base.authkey" style="width:260px" :disabled="true"></el-input>
+						<el-button type="text" @click="copy(config.base.authkey)">复制</el-button>
+						<br><span style="color:red">授权认证使用的动态字符串，该服务在启动的时候变化</span>
+					</el-form-item>
+					<el-form-item label="timestamp">
+						<el-input v-model="config.base.timestamp" style="width:140px"></el-input> 签名有效期 (必须是数字)
+					</el-form-item>
+				</el-form>
+				<el-button @click="base(1)" size="mini" type="success">保存</el-button>
+			</div>
+		</el-tab-pane>
+		<el-tab-pane name="websocket" label="websocket服务">
+			<div class="kcw-side-scroll" :style="'overflow:auto;height: '+(winheight-40)+'px;'">
+				<el-form size="mini" ref="form" :model="config.base" label-width="120px">
+					<el-form-item label="register">
+						<el-input v-model="config.websocket.register" style="width:140px"></el-input> 服务注册地址 (0.0.0.0:1238) 分布式时可以不填
+					</el-form-item>
+					<el-form-item label="lanIp">
+						<el-input v-model="config.websocket.lanIp" style="width:140px"></el-input> 本机ip(127.0.0.1)，分布式部署时使用本机内网ip
+					</el-form-item>
+					<el-form-item label="registerAddress">
+						<el-input v-model="config.websocket.registerAddress" style="width:140px"></el-input> 服务注册通讯地址 (127.0.0.1:1238) 分布式时使用其他服务器外网或内网
+					</el-form-item>
+					<el-form-item label="ister">
+						<el-input v-model="config.websocket.ister" style="width:140px"></el-input> websocket服务 (0.0.0.0:8283)
+					</el-form-item>
+				</el-form>
+				<el-button @click="base(1)" size="mini" type="success">保存</el-button>
+			</div>
+		</el-tab-pane>
+		<el-tab-pane name="tcp" label="tcp服务">
+			<div class="kcw-side-scroll" :style="'overflow:auto;height: '+(winheight-40)+'px;'">
+				<el-form size="mini" ref="form" :model="config.base" label-width="120px">
+					<el-form-item label="register">
+						<el-input v-model="config.tcp.register" style="width:140px"></el-input> 服务注册地址 (0.0.0.0:1239) 分布式时可以不填
+					</el-form-item>
+					<el-form-item label="lanIp">
+						<el-input v-model="config.tcp.lanIp" style="width:140px"></el-input> 本机ip(127.0.0.1)，分布式部署时使用本机内网ip
+					</el-form-item>
+					<el-form-item label="registerAddress">
+						<el-input v-model="config.tcp.registerAddress" style="width:140px"></el-input> 服务注册通讯地址 (127.0.0.1:1239) 分布式时使用其他服务器外网或内网
+					</el-form-item>
+					<el-form-item label="ister">
+						<el-input v-model="config.tcp.ister" style="width:140px"></el-input> tcp服务 (0.0.0.0:8284)
+					</el-form-item>
+				</el-form>
+				<el-button @click="base(1)" size="mini" type="success">保存</el-button>
+			</div>
+		</el-tab-pane>
+	</el-tabs>
+</div>
+</body>
+<script>
+var vm = new Vue({
+	el: '#app',
+	data: {
+		winheight:document.documentElement.clientHeight,
+		winwidth:document.documentElement.clientWidth,
+		activeName:"base",
+		config:{
+			base:{
+				authkey:'desgvedgvrehgtrhbtgrsefdvsdgfdgfdsgfdf',
+				timestamp:7200 //签名有效期
+			},websocket:{
+				register:'0.0.0.0:1238',
+				lanIp:'127.0.0.1',
+				registerAddress:'127.0.0.1:1238',
+				ister:'0.0.0.0:8283',
+			},tcp:{
+				register:'0.0.0.0:1239',
+				lanIp:'127.0.0.1',
+				registerAddress:'127.0.0.1:1239',
+				ister:'0.0.0.0:8284',
+			},
+		},
+		url:'/software/phpims',
+		id:"${id}",
+    },
+    mounted(){
+		self=this
+		self.base()
+		
+    },
+    methods: {
+		base(is_upd=0){
+			self=this
+			self.post(self.url+"/base/"+self.id+"/"+is_upd,self.config,'请稍后...').then(res => {
+				if (res.data.base.timestamp && is_upd==0){
+					self.config=res.data
+				}else if(is_upd){
+					self.$message({type: 'success',message: res.msg});
+				}
+			})
+		},
+		handleClick(tab, event) {
+			self=this
+			if (self.activeName=='base'){
+				self.base()
+			}
+		}
+    }
+});
+</script>
+</html>

@@ -1,0 +1,19 @@
+__pycache__
+.settings
+.buildpath
+.project
+*.log
+*.png
+*.pyc
+*log/
+runtime/
+/.idea
+/.vscode
+# app/file/sqlite
+kcweb/
+www/
+Cache/
+dump.rdb
+pull.bat
+push.bat
+firewallstatus

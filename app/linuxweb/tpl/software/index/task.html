@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>kcw-linux控制板</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
+    <meta name="HandheldFriendly" content="true"/>
+    <meta name="MobileOptimized" content="320"/>
+    <link rel="stylesheet" href="${static['static']}/element-ui/2.4.11/lib/theme-chalk/index.css"/>
+    <link rel="stylesheet" href="${static['static']}/font/font-awesome-4.7.0/css/font-awesome.min.css"/>
+    <link rel="stylesheet" href="/css/default.css"/>
+    <script src="${static['static']}/vue/2.6.10/vue.min.js"></script>
+    <script src="${static['static']}/element-ui/2.4.11/lib/index.js"></script>
+    <script src="${static['static']}/axios/0.18.0/axios.min.js"></script>
+    <script src="${static['static']}/qs/6.5.2/qs.min.js"></script>
+    <script src="${static['static']}/static/js/md5.min.js"></script>
+    <script src="/js/function.js"></script>
+</head>
+<style>
+*{padding:0px;margin:0px}
+.el-header, .el-footer {
+    background-color: #B3C0D1;
+    line-height: 60px;
+    padding:0px;
+    }
+.kcw-side-scroll::-webkit-scrollbar{width:0px}
+</style>
+<body>
+<div id="app">
+        <div style="margin:10px auto;width:98%">
+            <el-table :data="data.list" :height="winheight-66">
+                <el-table-column fixed prop="id" label="编号" width="100"></el-table-column>
+                <el-table-column prop="title" label="任务名称">
+                    <template slot-scope="scope">
+                        <el-tooltip class="item" effect="dark" :content="scope.row.describes" placement="top-end">
+                            <span>{{scope.row.title}}</span>
+                          </el-tooltip>
+                    </template>
+                </el-table-column>
+                <!-- <el-table-column prop="describes" label="任务描述" width="300"></el-table-column> -->
+                <el-table-column prop="res" label="执行结果" width="80"></el-table-column>
+                <el-table-column label="状态" width="80">
+                    <template slot-scope="scope">
+                        <span v-if="scope.row.code==2" type="text" size="mini"><i class="el-icon-loading"></i>等待执行</span>
+                        <span v-else-if="scope.row.code==3" type="text" size="mini"><i class="el-icon-loading"></i>执行中</span>
+                        <span v-else-if="scope.row.code==4" type="text" size="mini">执行完成</span>
+                    </template>
+                </el-table-column>
+                <el-table-column prop="addtime" label="添加时间" width="80">
+                    <template slot-scope="scope">
+                        <span v-html="time_date(scope.row.addtime)"></span>
+                    </template>
+                </el-table-column>
+            </el-table>
+            <div class="block" style="background:#FFF;margin-top:4px;height:36px;padding-top:4px">
+                <el-pagination
+                    @size-change="handleSizeChange" @current-change="handleCurrentChange"
+                    :current-page="currentPage" :page-size="data.pagesize"
+                    layout="total, sizes, prev, pager, next, jumper" :total="data.count">
+                </el-pagination>
+            </div>
+        </div>
+    
+
+    
+</div>
+</body>
+<script>
+new Vue({
+    el: '#app',
+    data() {
+        return {
+            winheight:document.documentElement.clientHeight,
+            winwidth:document.documentElement.clientWidth,
+            data:{
+                'pagesize':20,
+                'count':0,
+                'pagenow':1,
+                'list':[]
+            },
+            currentPage: 5,
+            url:'/software/index',
+            kw:null
+        };
+    },
+    mounted(){
+        self=this
+        window.onresize = function(){
+            self.winheight=document.documentElement.clientHeight
+            self.winwidth=document.documentElement.clientWidth
+        }
+        self.obtain()
+    },
+    methods: {
+        obtain(){
+			self=this
+			self.get(self.url+"/task",{'pagesize':self.data.pagesize,'pagenow':self.data.pagenow},'获取中...').then(res => {
+				self.data=res.data
+			})
+		},
+		handleSizeChange(val) {
+            self=this
+			self.data.pagesize=val
+			self.obtain()
+		},
+		handleCurrentChange(val) {
+			self.data.pagenow=val
+			self.obtain()
+		}
+    }
+});
+</script>
+</html>

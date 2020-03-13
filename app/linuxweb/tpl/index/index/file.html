@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+<html>
+<head>
+	<meta charset="utf-8" />
+	<title>kcw-linux控制板</title>
+	<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
+	<meta name="HandheldFriendly" content="true"/>
+	<meta name="MobileOptimized" content="320"/>
+	<link rel="stylesheet" href="${static['static']}/element-ui/2.4.11/lib/theme-chalk/index.css"/>
+	<link rel="stylesheet" href="${static['static']}/font/font-awesome-4.7.0/css/font-awesome.min.css"/>
+	<link rel="stylesheet" href="/css/default.css"/>
+	<script src="${static['static']}/vue/2.6.10/vue.min.js"></script>
+	<script src="${static['static']}/element-ui/2.4.11/lib/index.js"></script>
+	<script src="${static['static']}/axios/0.18.0/axios.min.js"></script>
+	<script src="${static['static']}/qs/6.5.2/qs.min.js"></script>
+	<script src="${static['static']}/static/js/md5.min.js"></script>
+	<script src="/js/function.js"></script>
+</head>
+<style>
+*{padding:0px;margin:0px}
+.el-header, .el-footer {
+    background-color: #B3C0D1;
+    line-height: 60px;
+    padding:0px;
+    }
+.kcw-side-scroll::-webkit-scrollbar{width:0px}
+</style>
+<body>
+<div id="app">
+	<div style="width:99%;margin:0 auto">
+		<div style="width:98.2%;background:#FFF;padding:10px;height:28px;margin-top:2px;">
+			<el-input v-model="paths" size="mini" placeholder="" style="width:40%;float:left;" class="input-with-select;">
+				<template slot="prepend"><el-button size="mini" @click="getlistsht()" icon="el-icon-back" title="后退"></el-button></template>
+				<template slot="prepend" title="根目录"><el-button @click="getlists('/')" size="mini" title="根目录"><img src="/images/icon/home.gif" style="height: 14px;" alt=""></el-button></template>
+				<template slot="append"><el-button size="mini" icon="el-icon-arrow-right" @click="getlists(paths)" title="前往"></el-button></template>
+			</el-input>
+			&nbsp
+			<el-button size="mini" type="primary" icon="el-icon-upload">上传</el-button>
+			<el-input size="mini" placeholder="搜索文件" style="width:40%;float:right">
+				<el-button type="primary" size="mini" slot="append" icon="el-icon-search"></el-button>
+			</el-input>
+		</div>
+						<el-table :data="data.list" :height="winheight-106" @selection-change="handleSelectionChange" style="width:100%;margin-top:4px">
+						<el-table-column type="selection" width="55"></el-table-column>
+						<el-table-column prop="name" label="文件名">
+								<template slot-scope="scope">
+									<img v-if="scope.row.type=='folder'" @click="getlists(paths+scope.row.name+'/')" :src="imghost+'/icon/folder.png'" alt="" style="height:30px;float:left; cursor:pointer">
+									<img v-else :src="imghost+'/icon/'+scope.row.suffix+'.png'" alt="" style="height:26px;float:left">
+									<span v-if="scope.row.type=='folder'" @click="getlists(paths+scope.row.name+'/')" v-html="scope.row.name" style="float:left;margin-top:3px;margin-left:4px; cursor:pointer"></span>
+									<span v-else v-html="scope.row.name" style="float:left;margin-top:3px;margin-left:4px;"></span>
+								</template>	
+						</el-table-column>
+						<el-table-column prop="size" label="大小" width="100">
+								<template slot-scope="scope">
+										<el-button v-if="scope.row.type=='folder'" type="text" size="small">计算文件夹大小</el-button>
+										<el-button v-else type="text" size="small">获取文件大小</el-button>
+								</template>
+						</el-table-column>
+						<el-table-column prop="jurisdiction" label="权限" width="60"></el-table-column>
+						<el-table-column fixed="right" label="操作" width="260">
+						<template slot-scope="scope">
+							<el-button type="text" size="small">复制</el-button>
+							<el-button type="text" size="small">剪切</el-button>
+							<el-button type="text" size="small">重命名</el-button>
+							<el-button type="text" size="small">删除</el-button>
+							<el-button type="text" size="small">权限</el-button>
+							<el-button type="text" size="small">属性</el-button>
+						</template>
+						</el-table-column>
+					</el-table>
+					<div class="block" style="background:#FFF;margin-top:4px;height:36px;padding-top:4px">
+						<span style="float:left;margin-top:2px">&nbsp&nbsp&nbsp<el-button @click=del size="mini" type="danger" icon="el-icon-delete">删除选中</el-button>&nbsp</span>
+						<el-pagination
+							@size-change="handleSizeChange" @current-change="handleCurrentChange"
+							:current-page="currentPage" :page-size="data.pagesize"
+							layout="total, sizes, prev, pager, next, jumper" :total="data.count">
+						</el-pagination>
+					</div>
+	</div>
+</div>
+</body>
+<script>
+var vm = new Vue({
+	el: '#app',
+	data: {
+		winheight:document.documentElement.clientHeight,
+		data:{
+			'pagesize':20,
+			'count':0,
+			'pagenow':1,
+			'list':[],
+			'paths':'/'
+		},currentPage:5,adminChange:[],paths:'/',
+		url:'/index/files',
+		imghost:"${static['img']}"
+	},
+	mounted(){
+		self=this
+		window.onresize = function(){
+			self.winheight=document.documentElement.clientHeight
+		}
+		self.getlists()
+	},
+	methods: {
+		handleCurrentChange(val) {
+			self.data.pagenow=val
+		},
+		handleSelectionChange(val) {
+            self=this
+			self.adminChange=val
+		},
+		handleSizeChange(val) {
+            self=this
+			self.data.pagesize=val
+		},
+		getlists(paths=''){
+			self=this
+			self.get(self.url+"/lists",{'paths':paths,'pagesize':self.data.pagesize,'pagenow':self.data.pagenow},'获取中...').then(res => {
+				self.data=res.data
+				self.paths=res.data.paths
+			})
+		},
+		getlistsht(){  //后退
+			self=this
+			arr=self.data.paths.split("/");
+			if (arr.length>=3){
+				paths=self.data.paths.replace(arr[arr.length-2]+"/","");
+				self.getlists(paths)
+			}
+		},
+		del(){
+			self=this
+			if(!self.adminChange.length){
+				self.$message.error('您未选择任何内容');
+			}else{
+				self.$confirm('此操作将永久删除该记录, 是否继续?', '删除提醒', {
+				confirmButtonText: '删除',
+				cancelButtonText: '取消',
+				type: 'warning'
+				}).then(() => {
+					id=[]
+					for(var i=0;i<self.adminChange.length;i++){
+						id.push(self.adminChange[i].name)
+					}
+					self.delete(self.url+"/delete",id,"正在删除中...").then(res => {
+						self.data.pagenow=1
+						self.obtain()
+						self.$message({type: 'success',message: '选中记录已删除!'});
+					})
+				}).catch(() => {});
+			}
+		},
+    }
+})
+</script>
+</html>

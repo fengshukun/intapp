@@ -1,0 +1,1 @@
+/intapp/letsencrypt/letsencrypt-auto certonly --email fk1402936534@qq.com -d *.kwebapp.cn --manual --preferred-challenges dns --server https://acme-v02.api.letsencrypt.org/directory

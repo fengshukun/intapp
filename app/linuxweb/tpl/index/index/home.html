@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+<html>
+<head>
+	<meta charset="utf-8" />
+	<title>kcw-linux控制板</title>
+	<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
+	<meta name="HandheldFriendly" content="true"/>
+	<meta name="MobileOptimized" content="320"/>
+	<link rel="stylesheet" href="${static['static']}/element-ui/2.4.11/lib/theme-chalk/index.css"/>
+	<link rel="stylesheet" href="${static['static']}/font/font-awesome-4.7.0/css/font-awesome.min.css"/>
+	<link rel="stylesheet" href="/css/default.css"/>
+	<script src="${static['static']}/vue/2.6.10/vue.min.js"></script>
+	<script src="${static['static']}/element-ui/2.4.11/lib/index.js"></script>
+	<script src="${static['static']}/axios/0.18.0/axios.min.js"></script>
+	<script src="${static['static']}/qs/6.5.2/qs.min.js"></script>
+	<script src="${static['static']}/static/js/md5.min.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/echarts@4.5.0/dist/echarts.min.js"></script>
+	<script src="/js/function.js"></script>
+</head>
+<style>
+*{padding:0px;margin:0px}
+.el-header, .el-footer {
+    background-color: #B3C0D1;
+    line-height: 60px;
+    padding:0px;
+    }
+.kcw-side-scroll::-webkit-scrollbar{width:0px}
+</style>
+<body>
+<div id="app">
+	<el-card class="box-card" style="width:99%;margin:10px auto">
+		<span v-if="data.platform">
+			<i v-if="data.platform.indexOf('Windows')!=-1" class="fa fa-windows" aria-hidden="true"></i>
+			<i v-else-if="data.platform.indexOf('centos')!=-1"><img src="${config.static['img']}/icon/centos.png" style="float:left;height:26px" alt=""></i>
+			<i v-else class="fa fa-linux" aria-hidden="true"></i>
+		</span>
+		<span v-if="data.platform" style="font-size:13px">系统 {{data.platform}}
+		&nbsp&nbsp&nbsp&nbsp控制板已不间断运行: {{data.rundate}}
+		</span>
+		<el-button @click="processstatus=true" style="float:right" size="mini">进程列表</el-button>
+	</el-card>
+	
+    <el-card class="box-card" style="width:99%;margin:10px auto;font-size:12px">
+		<el-col v-for="item in disks.partitions" :span="4" style="height:200px;text-align:center">
+			<div>{{item.name}}</div>
+			<el-progress v-if="item.userate > 90" type="circle" :percentage="item.userate" stroke-width="10"  color="red"></el-progress>
+			<el-progress v-else-if="item.userate > 80" type="circle" :percentage="item.userate" stroke-width="10"  color="#F56C6C"></el-progress>
+			<el-progress v-else-if="item.userate > 70" type="circle" :percentage="item.userate" stroke-width="10"  color="#E6A23C"></el-progress>
+			<el-progress v-else type="circle" :percentage="item.userate" stroke-width="10"  color="#67C23A"></el-progress>
+			<div v-if="parseInt(item.used/1024/1024) >= 1" style="font-size:12px">{{parseInt(item.used/1024/1024/1024)}}GB / {{parseInt(item.count/1024/1024/1024)}}GB</div>
+			<div v-else style="font-size:12px">{{parseInt(item.used/1024/1024)}}MB / {{parseInt(item.count/1024/1024)}}MB</div>
+		</el-col>
+		<el-col v-if="cpumes.cpu" :span="4" style="height:200px;text-align:center">
+			<div>CPU使用率</div>
+			<el-progress v-if="cpumes.cpu.use > 90" type="circle" :percentage="cpumes.cpu.use" stroke-width="10"  color="red"></el-progress>
+			<el-progress v-else-if="cpumes.cpu.use > 80" type="circle" :percentage="cpumes.cpu.use" stroke-width="10"  color="#F56C6C"></el-progress>
+			<el-progress v-else-if="cpumes.cpu.use > 70" type="circle" :percentage="cpumes.cpu.use" stroke-width="10"  color="#E6A23C"></el-progress>
+			<el-progress v-else type="circle" :percentage="cpumes.cpu.use" stroke-width="10"  color="#67C23A"></el-progress>
+			<div style="font-size:12px">{{cpumes.cpu.count}}核心</div>
+		</el-col>
+		<el-col v-if="cpumes.memory" :span="4" style="height:200px;text-align:center">
+			<div>物理内存使用率</div>
+			<el-progress v-if="cpumes.memory.physics.userate > 90" type="circle" :percentage="cpumes.memory.physics.userate" stroke-width="10"  color="red"></el-progress>
+			<el-progress v-else-if="cpumes.memory.physics.userate > 80" type="circle" :percentage="cpumes.memory.physics.userate" stroke-width="10"  color="#F56C6C"></el-progress>
+			<el-progress v-else-if="cpumes.memory.physics.userate > 70" type="circle" :percentage="cpumes.memory.physics.userate" stroke-width="10"  color="#E6A23C"></el-progress>
+			<el-progress v-else type="circle" :percentage="cpumes.memory.physics.userate" stroke-width="10"  color="#67C23A"></el-progress>
+			<div style="font-size:12px">{{Math.ceil(cpumes.memory.physics.used/1024/1024)}}MB / {{Math.ceil(cpumes.memory.physics.count/1024/1024)}}MB</div>
+		</el-col>
+		<el-col v-if="cpumes.memory" :span="4" style="height:200px;text-align:center">
+			<div>swap内存使用率</div>
+			<el-progress v-if="cpumes.memory.swap.userate > 90" type="circle" :percentage="cpumes.memory.swap.userate" stroke-width="10"  color="red"></el-progress>
+			<el-progress v-else-if="cpumes.memory.swap.userate > 80" type="circle" :percentage="cpumes.memory.swap.userate" stroke-width="10"  color="#F56C6C"></el-progress>
+			<el-progress v-else-if="cpumes.memory.swap.userate > 70" type="circle" :percentage="cpumes.memory.swap.userate" stroke-width="10"  color="#E6A23C"></el-progress>
+			<el-progress v-else type="circle" :percentage="cpumes.memory.swap.userate" stroke-width="10"  color="#67C23A"></el-progress>
+			<div style="font-size:12px">{{Math.ceil(cpumes.memory.swap.used/1024/1024)}}MB / {{Math.ceil(cpumes.memory.swap.count/1024/1024)}}MB</div>
+		</el-col>
+	</el-card>
+
+	<el-card class="box-card" style="width:99%;margin:10px auto;font-size:12px">
+		<div id="echarts" :style="'width: '+(winwidth)+'px;height:300px;'"></div>
+	</el-card>
+	<el-dialog title="进程管理" :visible.sync="processstatus" width="80%" style="overflow: hidden">
+		<el-table :data="process" height="450" border style="width: 100%">
+			<el-table-column prop="name" label="名"> </el-table-column>
+			<el-table-column prop="pid" label="pid"> </el-table-column>
+		</el-table>
+	</el-dialog>
+</div>
+</body>
+<script>
+var vm = new Vue({
+	el: '#app',
+	data: {
+		winheight:document.documentElement.clientHeight,
+		winwidth:document.documentElement.clientWidth,
+		data:{},
+		disks:{},
+		cpumes:{},
+		net:{
+			bytes_recv:[],
+			bytes_sent:[],
+			date:[],
+			syc:{bytes_recv:-1,bytes_sent:-1} //上一次数据包
+		},
+		myChart:null,
+		process:[],processstatus:false
+	},
+	mounted(){
+		self=this
+        window.onresize = function(){
+            self.winheight=document.documentElement.clientHeight
+            self.winwidth=document.documentElement.clientWidth
+		}
+		self.get("/index/home/home",{},'获取中...').then(res => {
+			self.data=res.data
+			self.get("/index/home/process",{},'获取中...').then(res => {
+				self.process=res.data
+				self.disk()
+			})
+		})
+	},
+	methods: {
+		disk(){
+			self=this
+			self.get("/index/home/disk",{},'获取中...').then(res => {
+				self.disks=res.data
+				self.cpume()
+			})
+		},
+		cpume(){
+			self=this
+			self.get("/index/home/cpume").then(res => {
+				self.cpumes=res.data
+				if(self.net.syc.bytes_recv>-1 && self.net.syc.bytes_sent>-1){
+					if (self.net.bytes_sent.length > 19){
+						self.net.bytes_sent.splice(0,1);
+						self.net.bytes_recv.splice(0,1);
+						self.net.date.splice(0,1);
+					}
+					var date = new Date(res.time*1000);
+					self.net.bytes_sent.push(((res.data.net.bytes_sent-self.net.syc.bytes_sent)/1024).toFixed(2))
+					self.net.bytes_recv.push(((res.data.net.bytes_recv-self.net.syc.bytes_recv)/1024).toFixed(2))
+					self.net.date.push(date.getHours()+"点"+date.getMinutes()+"分"+date.getSeconds())
+
+				}
+				self.net.syc.bytes_sent=res.data.net.bytes_sent
+				self.net.syc.bytes_recv=res.data.net.bytes_recv
+				
+				var option = {
+    title: {text: '         网络使用情况'},
+    tooltip : {
+        trigger: 'axis',
+        axisPointer: {
+            type: 'cross',
+            label: {backgroundColor: '#6a7985'}
+        }
+    },
+    legend: {data:['下行','上行']},
+    toolbox: {
+        feature: {
+            saveAsImage: {}
+        }
+    },
+    grid: {left: '0%',right: '0%',bottom: '1%',containLabel: true},
+    xAxis : [
+        {
+            type : 'category',
+            boundaryGap : false,
+            data : self.net.date //['周一','周二','周三','周四','周五','周六','周日']
+        }
+    ],
+    yAxis : [
+        {
+			type : 'value',
+			axisLabel: {formatter: '{value} kb/秒'}
+        }
+    ],
+    series : [
+        {
+            name:'下行',
+            type:'line',
+            stack: '总量',
+            areaStyle: {},
+            data:self.net.bytes_recv
+        },
+        {
+            name:'上行',
+            type:'line',
+            stack: '总量',
+            areaStyle: {},
+            data:self.net.bytes_sent
+        },
+    ]
+};
+				// 使用刚指定的配置项和数据显示图表。
+				if(!self.myChart){
+					self.myChart=echarts.init(document.getElementById('echarts'));
+				}
+				self.myChart.setOption(option);
+				setTimeout(() => {
+					self.cpume()
+				}, 1000);
+			}).catch(() => {
+				setTimeout(() => {
+					self.cpume()
+				}, 1000);
+			});
+		},
+		
+    }
+})
+</script>
+</html>

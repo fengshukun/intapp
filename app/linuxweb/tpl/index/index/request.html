@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+<html>
+<head>
+	<meta charset="utf-8" />
+	<title>kcw-linux控制板</title>
+	<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
+	<meta name="HandheldFriendly" content="true"/>
+	<meta name="MobileOptimized" content="320"/>
+	<link rel="stylesheet" href="${static['static']}/element-ui/2.4.11/lib/theme-chalk/index.css"/>
+    <link rel="stylesheet" href="${static['static']}/font/font-awesome-4.7.0/css/font-awesome.min.css"/>
+    <link rel="stylesheet" href="${static['static']}/jquery/1.11.0/css/jquery.json-viewer.css"/>
+	<link rel="stylesheet" href="/css/default.css"/>
+	<script src="${static['static']}/vue/2.6.10/vue.min.js"></script>
+	<script src="${static['static']}/element-ui/2.4.11/lib/index.js"></script>
+	<script src="${static['static']}/axios/0.18.0/axios.min.js"></script>
+	<script src="${static['static']}/qs/6.5.2/qs.min.js"></script>
+    <script src="${static['static']}/static/js/md5.min.js"></script>
+    <script src="${static['static']}/editor.md/1.5.0/examples/js/jquery.min.js"></script>
+    <script src="${static['static']}/jquery/1.11.0/jquery.json-viewer.js"></script>
+	<script src="/js/function.js"></script>
+</head>
+<style>
+*{padding:0px;margin:0px}
+.el-header, .el-footer {
+    background-color: #B3C0D1;
+    line-height: 60px;
+    padding:0px;
+    }
+.kcw-side-scroll::-webkit-scrollbar{width:0px}
+.kcw-side-scroll1::-webkit-scrollbar{width: 10px;  /*滚动条宽度*/height: 10px;  /*滚动条高度*/}
+/*定义滚动条轨道 内阴影+圆角*/  
+.kcw-side-scroll1::-webkit-scrollbar-track  {-webkit-box-shadow: inset 0 0 6px rgba(255, 255, 255, 0.3);border-radius: 10px;  /*滚动条的背景区域的圆角*/background-color: #ffffff;/*滚动条的背景颜色*/  }  
+/*定义滑块 内阴影+圆角*/  
+.kcw-side-scroll1::-webkit-scrollbar-thumb  {border-radius: 4px;  /*滚动条的圆角*/-webkit-box-shadow: inset 0 0 6px rgba(255, 255, 255, 0.3); background-color: rgb(196, 202, 196);  /*滚动条的背景颜色*/}
+
+</style>
+<body>
+<div id="app">
+    <div :style="'width:199px;height:'+(winheight)+'px;float:left;'">
+        <div style="height:32px;background:#FFF;padding-top:6px;border-bottom:1px solid #67C23A">
+            <el-button onclick="window.history.go(-1)" title="返回" icon="el-icon-arrow-left" size="mini"></el-button>
+            <el-button @click="dialog.title='创建request收藏夹目录';dialog.status=true;form={title:'',describes:'',contents:'',opens:1,icon:'',types:0,pid:0}" size="mini" style="width:80px;">创建目录</el-button>
+        </div>
+        <el-tree :data="tree" :props="defaultProps" node-key="id" :default-expanded-keys=defaultexpandedkeys class="kcw-side-scroll" style="height:calc(100% - 40px);width:100%;overflow:hidden;overflow-y:auto;">
+                <p slot-scope="{node,data}" style="width:100%">
+                        <img v-if="data.types==0" src="${static['img']}/icon/folder.png" style="float:left;height:22px;">
+                        <img v-else @click="gettreetext(data.id,data.types)" src="${static['img']}/icon/tool.png" style="float:left;height:22px;">
+                        <el-tooltip v-if="data.describes" class="item" effect="dark" :content="data.describes" placement="right">
+                            <span v-html="data.title" @click="gettreetext(data.id,data.types)" style="float:left;width:100px;overflow:hidden;"></span>
+                        </el-tooltip>
+                        <span v-else v-html="data.title" @click="gettreetext(data.id,data.types)" style="width:100px;overflow:hidden;"></span>
+
+
+                        
+                        <el-dropdown v-if="data.types==0" style="float:right;margin-top:2px;margin-right:2px;">
+                            <span class="el-dropdown-link">
+                                <i class="el-icon-more"></i>
+                            </span>
+                            <el-dropdown-menu slot="dropdown">
+                                <el-dropdown-item @click.native="dialog.title='创建子目录';dialog.status=true;form={title:'',pid:data.id,describes:'',contents:'',opens:1,icon:'',types:0}"><img src="${static['img']}/icon/folder.png" style="float:left;height:22px;margin-top:6px;">创建子目录</el-dropdown-item>
+                                <el-dropdown-item @click.native="dialog.title='添加页面';dialog.status=true;form={title:'',pid:data.id,describes:'',contents:'',opens:0,icon:'',types:1}"><img src="${static['img']}/icon/tool.png" style="float:left;height:22px;margin-top:6px;">添加页面</el-dropdown-item>
+                                <el-dropdown-item @click.native="treedel(data.id)"><i class="el-icon-delete" style="font-size:20px"></i>&nbsp删除</el-dropdown-item>
+                            </el-dropdown-menu>
+                        </el-dropdown>
+                        <el-tooltip v-else class="item" @click.native="treedel(data.id)" effect="dark" content="删除" placement="right">
+                            <i class="el-icon-delete" style="float:right;margin-top:3px;margin-right:2px;"></i>
+                        </el-tooltip>
+                    </p>
+        </el-tree>
+    </div>
+    <div class="kcw-side-scroll" :style="'width:calc(100% - 200px);height:'+(winheight)+'px;float:right;overflow:hidden;overflow-y:auto;'">
+            <div style="background:#FFF;min-height:100px">
+                    <div style="width:98%;margin-left:10px">
+                    <el-tabs v-model="reqName">
+                        <el-tab-pane label="请求头" name="reqheader">
+                            <div style="margin-left:10px;width:90%">
+                                    <table width="100%">
+                                            <tr><td width="200px"></td><td></td><td width="60px"></td></tr>
+                                            <tr v-for="item,index in sendinfo.header">
+                                                <td><el-input size="small" placeholder="key" v-model="item.key"></el-input></td>
+                                                <td><el-input size="small" placeholder="value" v-model="item.value"></el-input></td>
+                                                <td><el-button @click="sendinfo.header.splice(index,1)" size="small" type="danger" icon="el-icon-delete" circle title="删除"></el-button></td>
+                                            </tr>
+                                    </table>
+                                    <el-button @click="newparam('header')" type="success" size="small">新增</el-button>
+
+                            </div>
+                        </el-tab-pane>
+                        <el-tab-pane label="请求体" name="reqbody">
+                            <el-radio-group @change="myparamtype" v-model="sendinfo.body.paramtype">
+                                <el-radio label="x-www-form-urlencoded">x-wwwform-urlencoded</el-radio>
+                                <el-radio label="raw">raw</el-radio>
+                            </el-radio-group>
+                            <div v-if="sendinfo.body.paramtype=='x-www-form-urlencoded'" style="margin-left:26px;width:90%">
+                                    <table width="100%" style="margin-top:10px">
+                                        <tr>
+                                            <td width="160px"></td>
+                                            <td width="460px"></td>
+                                            <td width="40px"></td>
+                                            <td></td>
+                                        </tr>
+                                        <tr v-for="item,index in sendinfo.body.form_param">
+                                            <td><el-input size="small" placeholder="key" v-model="item.key"></el-input></td>
+                                            <td><el-input size="small" placeholder="value" v-model="item.value"></el-input></td>
+                                            <td><el-button @click="sendinfo.body.form_param.splice(index,1)" size="small" type="danger" icon="el-icon-delete" circle title="删除"></el-button></td>
+                                            <td><el-input size="small" placeholder="value" v-model="item.descs" style="color:#CCC"></el-input></td>
+                                        </tr>
+                                    </table>
+                                    <el-button @click="newparam('body')" type="success" size="small">新增</el-button>
+                            </div>
+                            <div v-else-if="sendinfo.body.paramtype=='raw'" style="margin-left:26px;width:90%">
+                                <el-input type="textarea" autosize :rows="2" v-model="sendinfo.body.raw_param"></el-input>
+                            </div>
+                        </el-tab-pane>
+                    </el-tabs>
+                    </div>
+                </div>
+                <div style="background:#FFF;padding-top:10px;height:50px">
+                    <div style="width:98%;margin-left:10px">
+                        <el-input placeholder="请输入完整的url地址" v-model="sendinfo.URL" class="input-with-select" style="width: 700px">
+                            <el-select v-model="sendinfo.Method" slot="prepend" placeholder="请选择" style="width: 100px">
+                                <el-option label="GET" value="GET"></el-option>
+                                <el-option label="POST" value="POST"></el-option>
+                                <el-option label="HEAD" value="HEAD"></el-option>
+                                <el-option label="DELETE" value="DELETE"></el-option>
+                                <el-option label="OPTIONS" value="OPTIONS"></el-option>
+                            </el-select>
+                        </el-input>
+                        <el-button @click="curls()" type="success" plain title="发送http请求">发送</el-button>
+                        <el-button @click="dialog.title='添加到request收藏夹';dialog.status=true;form={title:'',describes:'',contents:'',opens:0,icon:'',types:1,pid:0}" type="success" title="添加到request收藏夹"><img src="${static['img']}/icon/favorites.png" style="height:13px"></el-button>
+                        
+                    </div>
+                </div>
+                <div :style="'margin-top:10px;background:#FFF;height:'+(winheight)+'px;overflow:hidden;'">
+                    <div style="width:98%;margin-left:10px">
+                    <el-tabs v-model="resName">
+                        <el-tab-pane label="响应头" name="resheader">
+                                <div class="kcw-side-scroll1" :style="'height:'+(winheight-60)+'px;overflow:hidden;overflow-y:auto;'">
+                                    <el-alert v-if="resdata.status==200" title="200 ok" type="success"></el-alert>
+                                    <el-alert v-else-if="resdata.status" :title="resdata.status" type="error"></el-alert>
+                                    <pre>{{resdata.header}}</pre>
+                                </div>
+                        </el-tab-pane>
+                        <el-tab-pane label="响应体" name="resbody">
+                            <div class="kcw-side-scroll1" :style="'height:'+(winheight-60)+'px;overflow:hidden;'">
+                                <div id="resdatastyle" class="kcw-side-scroll1" :style="'height:'+(winheight-80)+'px;overflow:hidden;overflow-y:auto;'">
+                                    <div style="width:100%;text-align:right">
+                                        <el-tooltip v-if="resdata.body" class="item" effect="dark" content="清除" placement="top-start">
+                                            <el-button @click="del_json_renderer" size="small" type="danger" icon="el-icon-delete" circle></el-button>
+                                        </el-tooltip>
+                                        <el-tooltip v-if="resdata.body" class="item" effect="dark" content="复制内容" placement="top-start">
+                                            <el-button @click="copy(resdata.body)" size="small" type="primary" icon="el-icon-document" circle></el-button>
+                                        </el-tooltip>
+                                    </div>
+                                    <pre id="json-renderer" style="display: block;
+                                    white-space: pre;"></pre>
+                                </div>
+                                
+                            </div>
+                        </el-tab-pane>
+                    </el-tabs>
+                    </div>
+                </div>
+    </div>
+    <el-dialog :title="dialog.title" :visible.sync="dialog.status" width="70%">
+            <el-form :model="form" label-width="80px">
+                <el-form-item label="名称">
+                    <el-input v-model="form.title"></el-input>
+                </el-form-item>
+                <el-form-item label="备注">
+                    <el-input v-model="form.describes"></el-input>
+                </el-form-item>
+                <el-form-item>
+                    <el-button type="primary" @click="treeadd">立即创建</el-button>
+                    <el-button @click="dialog.status=false">取消</el-button>
+                </el-form-item>
+            </el-form>
+        </el-dialog>
+</div>
+</body>
+<style>
+.resdata1{background:#817E7E;color:#34E2E2;}
+</style>
+<script>
+var vm = new Vue({
+	el: '#app',
+	data: {
+        winheight:document.documentElement.clientHeight,
+        dialog:{title:'',status:false},
+        form:{title:'',describes:'',contents:'',opens:0,icon:'',types:1,pid:0},
+        kw:'',
+        reqName: 'reqbody',resName: 'resbody',
+        sendinfo:{
+            URL:'',
+            Method:'GET',
+            header:[
+                {key:'Content-Type',value:'application/x-www-form-urlencoded',descs:'备注'}
+            ],
+            body:{
+                paramtype:'x-www-form-urlencoded',
+                form_param:[
+                    {key:'title',value:'',descs:'备注'}
+                ],
+                raw_param:'{}'
+            }
+        },
+        resdata:{
+            header:"",
+            status:'',
+            body:''
+        },
+        tree:{},
+        defaultProps: {
+          children: 'level',
+          label: 'title'
+		},
+        defaultexpandedkeys:[], //默认展开id是7和8的节点
+	},
+	mounted(){
+		self=this
+		window.onresize = function(){
+			self.winheight=document.documentElement.clientHeight
+		}
+        self.gettreelist()
+	},
+	methods: {
+        //获取节点文本 
+		gettreetext(id,types=1){
+			if (types){
+				self=this
+				self.get('/index/public/request_treetext/'+id).then(res => {
+					self.sendinfo=res.data.contents
+				})
+			}
+        },
+        //删除节点
+		treedel(id){
+			self=this
+			self.$confirm('此操作将永久删除该记录, 是否继续?', '删除提醒', {
+			confirmButtonText: '删除',
+			cancelButtonText: '取消',
+			type: 'warning'
+			}).then(() => {
+				self.delete('/index/request/treedel/'+id).then(res => {
+					self.gettreelist()
+				})
+			}).catch(() => {});
+		},
+        treeadd(){
+            self=this
+            if(self.form.types==1){
+                self.form.contents=JSON.stringify(self.sendinfo)
+            }
+			self.post('/index/request/treeadd/',self.form,'保存中...').then(res => {
+				if(res.code==0){
+                    self.dialog.status=false
+                    self.gettreelist()
+                }
+			})
+        },
+        myparamtype(value){
+            self=this
+            if (value=='x-www-form-urlencoded'){
+                var urlencoded=true
+                for(var i=0;i<self.sendinfo.header.length;i++){
+                    if(self.sendinfo.header[i]['key']=='Content-Type'){
+                        self.sendinfo.header[i]['value']='application/x-www-form-urlencoded'
+                        urlencoded=false
+                    }
+                }
+                if (urlencoded){
+                    self.newparam('header','Content-Type','application/x-www-form-urlencoded')
+                }
+            }
+            else if (value=='raw'){
+                var raw=true
+                for(var i=0;i<self.sendinfo.header.length;i++){
+                    if(self.sendinfo.header[i]['key']=='Content-Type'){
+                        self.sendinfo.header[i]['value']='application/json'
+                        raw=false
+                    }
+                }
+                if (raw){
+                    self.newparam('header','Content-Type','application/json')
+                }
+            }
+        },
+        del_json_renderer(){//清除内容
+            var self = this;
+            $('#json-renderer').html('');
+            self.resdata.body='';
+        },
+        //获取节点列表 
+		gettreelist(){
+			self=this
+			self.get('/index/public/request_tree',{kw:self.kw},'加载中...').then(res => {
+				self.tree=res.data
+			})
+        },
+        //发送请求
+        curls(){
+            var self = this;
+            self.restype='json'
+            if (self.is_url(self.sendinfo.URL)){
+                self.post('/index/public/request_curls',self.sendinfo,'请求发送中...').then(res => {
+                    if(res.code==0){
+                        self.$notify({title: '请求已成功发送并且已响应',message: '',type: 'success'});
+                        self.resdata=res.data
+                        try{
+                            $("#resdatastyle").css({'background':'#FFF','color':'#000'})
+                            $('#json-renderer').jsonViewer(eval('(' + self.resdata.body + ')'), {collapsed: 0,withQuotes: 0});
+                        }catch(e){
+                            $("#resdatastyle").css({'background':'#817E7E','color':'#34E2E2'})
+                            $('#json-renderer').text(self.resdata.body)
+                        }
+                    }else{
+                        self.$message({message: res.msg,type: 'error'});
+                    }
+                });
+            }else{
+                self.$message({message: "请输入完整的url",type: 'error'});
+            }
+        },
+        //新增参数
+        newparam(s='header',key='',value=''){
+            self=this
+            if(s=='header'){
+                self.sendinfo.header.push({'key':key,'value':value,descs:'备注'})
+            }else if(s=='body'){
+                self.sendinfo.body.form_param.push({'key':key,'value':value,descs:'备注'})
+            }
+        }
+    }
+})
+</script>
+</html>

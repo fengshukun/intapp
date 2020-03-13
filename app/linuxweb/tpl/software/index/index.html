@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>kcw-linux控制板</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
+    <meta name="HandheldFriendly" content="true"/>
+    <meta name="MobileOptimized" content="320"/>
+    <link rel="stylesheet" href="${static['static']}/element-ui/2.4.11/lib/theme-chalk/index.css"/>
+    <link rel="stylesheet" href="${static['static']}/font/font-awesome-4.7.0/css/font-awesome.min.css"/>
+    <link rel="stylesheet" href="/css/default.css"/>
+    <script src="${static['static']}/vue/2.6.10/vue.min.js"></script>
+    <script src="${static['static']}/element-ui/2.4.11/lib/index.js"></script>
+    <script src="${static['static']}/axios/0.18.0/axios.min.js"></script>
+    <script src="${static['static']}/qs/6.5.2/qs.min.js"></script>
+    <script src="${static['static']}/static/js/md5.min.js"></script>
+    <script src="/js/function.js"></script>
+</head>
+<style>
+*{padding:0px;margin:0px}
+.el-header, .el-footer {
+    background-color: #B3C0D1;
+    line-height: 60px;
+    padding:0px;
+    }
+.kcw-side-scroll::-webkit-scrollbar{width:0px}
+</style>
+<body>
+<div id="app">
+        <el-dialog :title="dialogtitle" :visible.sync="dialogstatus" width="800px" style="overflow: hidden">
+                <iframe :srcdoc="iframedoc"  style="margin-left:1px;margin-top:1px" frameborder="0"  width="99.9%" :height="(winheight-300)+'px'"></iframe>
+        </el-dialog>
+        <el-dialog title="任务列表" :visible.sync="taskstatus" width="800px" style="overflow: hidden">
+                <iframe :srcdoc="tasklist"  style="margin-left:1px;margin-top:1px" frameborder="0"  width="99.9%" :height="(winheight-300)+'px'"></iframe>
+        </el-dialog>
+        <div style="height:38px;padding-top:0px;background:#FFF;padding-top:10px;margin:10px auto;width:98%">
+                &nbsp&nbsp&nbsp<el-input size="mini" style="width:200px" placeholder="软件名称" v-model="kw"></el-input>
+                <el-button size="mini" @click="data.pagenow=1;obtain()" icon="el-icon-search">搜索</el-button>
+                % if config.app['appmode']=='develop':
+                &nbsp&nbsp&nbsp<el-button size="mini" @click="admindialog={status:true,title:'发布软件'},form={icon:'/icon/java.png',title:'',describes:'',paths:'/usr/local/',status:0,filename:'',platform:'linux'}">发布软件</el-button>
+                % endif
+                &nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp
+                <el-radio-group @change="obtain" size="mini" v-model="status">
+                    <el-radio-button label="">全部</el-radio-button>
+                    <el-radio-button label="4">已安装</el-radio-button>
+                    <el-radio-button label="10">运行中</el-radio-button>
+                </el-radio-group>
+                <el-button size="mini" @click="gettasklist" style="float:right;margin-right:10px">任务中心</el-button>
+            </div>
+        <div style="margin:10px auto;width:98%">
+            <el-table :data="data.list" :height="winheight-126" @selection-change="handleSelectionChange">
+                % if config.app['appmode']=='develop':
+                <el-table-column type="selection" width="55"></el-table-column>
+                <el-table-column prop="id" label="id" width="60"></el-table-column>
+                <el-table-column prop="status" label="状态" width="60"></el-table-column>
+                % endif
+                <el-table-column prop="title" label="软件名称" width="200">
+                    <template slot-scope="scope">
+                        <img :src="'${static['img']}'+scope.row.icon" style="height:26px;float:left">
+                        <span>{{scope.row.title}}</span>
+                    </template>
+                </el-table-column>
+                <el-table-column prop="title" label="目录" width="60">
+                    <template slot-scope="scope">
+                        <div v-if="scope.row.status >= 4">
+                            <a v-if="data.kodexplorer" :href="data.kodexplorer+'/index.php?explorer&path='+scope.row.paths+'/'+scope.row.title"><img src="${static['img']}/icon/folder.png" style="height:26px"></a>
+                            <i v-else class="fa fa-clipboard" aria-hidden="true" title="复制目录地址"  @click="copy(scope.row.paths+'/'+scope.row.title)" style="cursor:pointer"></i>
+                        </div>
+                    </template>
+                </el-table-column>
+                <el-table-column label="" width="320">
+                <template slot-scope="scope">
+                    <!-- <span v-if="data.sysinfo.uname[0]==scope.row.platform"> -->
+                        <el-button v-if="scope.row.status==0" @click="install(scope.row,scope.$index)" type="text" size="mini">安装</el-button>
+                        <span v-else-if="scope.row.status==1" type="text" size="mini"><i class="el-icon-loading"></i>等待中...</span>
+                        <span v-else-if="scope.row.status==2" type="text" size="mini"><i class="el-icon-loading"></i>下载中...</span>
+                        <span v-else-if="scope.row.status==3" type="text" size="mini"><i class="el-icon-loading"></i>安装中...</span>
+                        <span v-else-if="scope.row.status==4" type="text" size="mini">
+                            <span v-if="scope.row.title.indexOf('mysql')!=-1 || scope.row.title.indexOf('php5')!=-1  || scope.row.title.indexOf('php7')!=-1 || scope.row.title.indexOf('phpims')!=-1  || scope.row.title.indexOf('nginx')!=-1 || scope.row.title.indexOf('redis')!=-1">
+                                <!-- 已停止 -->
+                                <i class="fa fa-pause" style="color:red;"></i>
+                                <el-button plain style="height:20px;padding-top:4px" @click="install(scope.row,scope.$index)" size="mini">启动</el-button>
+                            </span>
+                            <span v-else-if="scope.row.title.indexOf('frp')!=-1">
+                                <el-tooltip v-if="frp.frpc==1"  class="item" effect="dark" content="客户端正在运行中" placement="top"><i class="fa fa-play" style="color:#67C23A;">客户端</i></el-tooltip>
+                                <el-tooltip v-else  class="item" effect="dark" content="客户端已停止" placement="top"><i class="fa fa-pause" style="color:red;">客户端</i></el-tooltip>
+                                &nbsp&nbsp
+                                <el-tooltip v-if="frp.frps==1"  class="item" effect="dark" content="服务端正在运行中" placement="top"><i class="fa fa-play" style="color:#67C23A;">服务端</i></el-tooltip>
+                                <el-tooltip v-else  class="item" effect="dark" content="服务端已停止" placement="top"><i class="fa fa-pause" style="color:red;">服务端</i></el-tooltip>
+                                &nbsp&nbsp
+                            </span>
+                            <el-button v-if="scope.row.title.indexOf('git')!=-1" type="primary" @click="setups(scope.row,scope.$index)" size="mini" plain style="height:20px;padding-top:4px">ssh密钥</el-button>
+                            <el-button v-else-if="scope.row.title.indexOf('mongodb')!=-1" type="primary" @click="setups(scope.row,scope.$index)" size="mini" plain style="height:20px;padding-top:4px">服务管理</el-button>
+                            <el-button v-else type="primary" @click="setups(scope.row,scope.$index)" size="mini" plain style="height:20px;padding-top:4px">设置</el-button>
+                            <el-button type="danger" @click="uninstall(scope.row,scope.$index)" size="mini" plain style="height:20px;padding-top:4px">卸载</el-button>
+                        </span>
+                        <span v-else-if="scope.row.status==10" type="text" size="mini">
+                            <span v-if="scope.row.title.indexOf('mysql')!=-1 || scope.row.title.indexOf('php')!=-1 || scope.row.title.indexOf('nginx')!=-1 || scope.row.title.indexOf('redis')!=-1">
+                                <!-- 运行中 -->
+                                <i class="fa fa-play" style="color:#67C23A;"></i>
+                                <el-button type="warning" @click="install(scope.row,scope.$index)" size="mini" plain style="height:20px;padding-top:4px">停止</el-button>
+                                <el-button @click="reboot(scope.row,scope.$index)" size="mini" plain style="height:20px;padding-top:4px">重启</el-button>
+                            </span>
+                            <el-button type="primary" @click="setups(scope.row,scope.$index)" size="mini" plain style="height:20px;padding-top:4px">设置</el-button>
+                        </span>
+                        <span v-else-if="scope.row.status==5" type="text" size="mini"><i class="el-icon-loading"></i>卸载中...</span>
+                        <span v-else-if="scope.row.status==9" type="text" size="mini"><i class="el-icon-loading"></i>启动中...</span>
+                        <span v-else-if="scope.row.status==11" type="text" size="mini"><i class="el-icon-loading"></i>停止服务...</span>
+                    <!-- </span>
+                    <span v-else>
+                        <el-button disabled>不支持此平台</el-button>
+                    </span> -->
+                    % if config.app['appmode']=='develop':
+                    <el-button style="float:right" @click="admindialog.title=scope.row.title;admindialog.status=true;form=scope.row" type="text" size="mini">编辑</el-button>
+                    % endif
+                </template>
+                </el-table-column>
+                <el-table-column prop="describes" label="说明">
+                    <template slot-scope="scope">
+                        <span>{{scope.row.describes}}</span>
+                        <span v-if="scope.row.msg=='运行中'" style="color:#67C23A">{{scope.row.msg}}</span>
+                        <span v-else style="color:red">{{scope.row.msg}}</span>
+                    </template>
+                </el-table-column>
+                <el-table-column prop="platform" label="适用平台" width="100">
+                    <template slot-scope="scope">
+                        <img :src="'${static['img']}/icon/'+scope.row.platform+'.png'" style="height:26px;float:left">
+                    </template>
+                </el-table-column>
+            </el-table>
+            <div class="block" style="background:#FFF;margin-top:4px;height:36px;padding-top:4px">
+                % if config.app['appmode']=='develop':
+                <span style="float:left;margin-top:2px">&nbsp&nbsp&nbsp<el-button @click=del size="mini" type="danger" icon="el-icon-delete">删除选中</el-button>&nbsp</span>
+                % endif
+                <el-pagination
+                    @size-change="handleSizeChange" @current-change="handleCurrentChange"
+                    :current-page="currentPage" :page-size="data.pagesize"
+                    layout="total, sizes, prev, pager, next, jumper" :total="data.count">
+                </el-pagination>
+            </div>
+        </div>
+    
+    <el-dialog
+    :title="admindialog.title"
+    :visible.sync="admindialog.status"
+    width="600px">
+    <el-form ref="form" :model="form" label-width="100px" label-position="left">
+        <el-form-item label="图标">
+            <el-input placeholder="软件图标" v-model="form.icon"></el-input>
+        </el-form-item>
+        <el-form-item label="名字">
+            <el-input placeholder="必须与安装后创建的文件夹名字相同" v-model="form.title"></el-input>
+        </el-form-item>
+        <el-form-item label="描述">
+            <el-input placeholder="软件描述" v-model="form.describes"></el-input>
+        </el-form-item>
+        <el-form-item label="安装目录">
+            <el-input placeholder="卸载的时候会使用安装目录" v-model="form.paths"></el-input>
+            <span style="color:#CCC">如：/usr/local/php/</span>
+        </el-form-item>
+        <el-form-item label="状态">
+            <el-input placeholder="状态" v-model="form.status"></el-input>
+        </el-form-item>
+        <el-form-item label="wget文件">
+            <el-input placeholder="wget地址后半部分，如：php/php.sh && sh php.sh php7.0" v-model="form.filename"></el-input>
+            <span style="color:#CCC">注：需要在后端接口上配置wget文件地址</span>
+        </el-form-item>
+        <el-form-item label="适用平台">
+            <el-radio-group v-model="form.platform">
+                <el-radio label="Linux">Linux</el-radio>
+                <el-radio label="Windows">Windows</el-radio>
+                <!-- <el-radio label="Currency">Linux/Windows通用</el-radio> -->
+            </el-radio-group>
+        </el-form-item>
+    </el-form>
+    <span slot="footer" class="dialog-footer">
+        <el-button @click="admindialog.status = false">取 消</el-button>
+        <el-button v-if="form.id" type="primary" @click="upd">修改</el-button>
+        <el-button v-else type="primary" @click="add">发布</el-button>
+    </span>
+    </el-dialog>
+    
+</div>
+</body>
+<script>
+new Vue({
+    el: '#app',
+    data() {
+        return {
+            winheight:document.documentElement.clientHeight,
+            winwidth:document.documentElement.clientWidth,
+            status:'4',
+            data:{
+                'pagesize':20,
+                'count':0,
+                'pagenow':1,
+                'list':[],
+                'kodexplorer':''
+            },
+            frp:{frpc:0,frps:0},
+            form:{icon:'/icon/java.png',title:'',describes:'',paths:'/usr/local/',status:0,filename:'',platform:'linux'},admindialog:{status:false,title:'添加管理'},
+            adminChange:[],
+            currentPage: 5,
+            url:'/software/index',
+            kw:null,
+            iframedoc:'',dialogtitle:'2',dialogstatus:false,
+            tasklist:'',taskstatus:false,
+        };
+    },
+    mounted(){
+        self=this
+        window.onresize = function(){
+            self.winheight=document.documentElement.clientHeight
+            self.winwidth=document.documentElement.clientWidth
+        }
+        self.obtain()
+    },
+    methods: {
+        setups(item,index){
+            "设置软件页面"
+            self=this
+            self.dialogtitle=item.title
+            self.dialogstatus=true
+            url="/software/index/index/"+item.title
+            if(item.title.indexOf("nginx") != -1){
+                url="/software/index/index/nginx"
+            }else if(item.title.indexOf("kodexplorer") != -1){
+                url="/software/index/index/kodexplorer"
+            }else if(item.title.indexOf("phpmyadmin") != -1){
+                url="/software/index/index/phpmyadmin"
+            }else if(item.title.indexOf("phpims") != -1){
+                url="/software/index/index/phpims"
+            }else if(item.title.indexOf("php") != -1){
+                url="/software/index/index/php"
+            }else if(item.title.indexOf("redis") != -1){
+                url="/software/index/index/redis"
+            }else if(item.title.indexOf("git") != -1){
+                url="/software/index/index/git"
+            }else if(item.title.indexOf("mongodb") != -1){
+                url="/software/index/index/mongodb"
+            }else if(item.title.indexOf("mysql") != -1){
+                url="/software/index/index/mysql"
+            }else if(item.title.indexOf("frp") != -1){
+                url="/software/index/index/frp"
+            }else{
+                url="/software/index/index/"+item.title
+            }
+            url=url+"/"+item.id
+            self.getcontent(url).then(html => {
+                // setTimeout(function(){self.title='';self.icon=icon},100)
+                self.iframedoc=html
+            }).catch(err => {
+                if (err.response) {
+                    self.iframedoc=err.response.data
+                }else{
+                    self.$message({message: "网络异常，",type: 'error'});
+                }
+            });
+        },
+        //获取任务中心页面
+        gettasklist(){
+            self.getcontent("/software/index/index/task/1").then(html => {
+                // setTimeout(function(){self.title='';self.icon=icon},100)
+                self.tasklist=html
+                self.taskstatus=true
+            }).catch(err => {
+                if (err.response) {
+                    self.tasklist=err.response.data
+                    self.taskstatus=true
+                }else{
+                    self.$message({message: "网络异常，",type: 'error'});
+                }
+            });
+        },
+        //安装软件
+        install(item,index){
+            self=this
+			self.get(self.url+"/install/"+item.id,null,'稍等...').then(res => {
+				if(res.code==0){
+                    if(item.status==0){
+                        self.data.list[index].status=1
+                    }else if(item.status==2){
+                        self.data.list[index].status=3
+                    }else if(item.status==4){
+                        self.data.list[index].status=9
+                    }else if(item.status==10){
+                        self.data.list[index].status=11
+                    }
+                    setTimeout(function(){
+                        self.getinfo(item,index)
+                    },2000);
+                    
+                }
+			})
+        },
+         //卸载软件
+         uninstall(item,index){
+            self=this
+            self.$confirm('卸载'+item.title+', 是否继续?',item.title, {
+                confirmButtonText: '卸载',
+                cancelButtonText: '取消',
+                type: 'warning'
+            }).then(() => {
+                self.data.list[index].status=5
+                self.get(self.url+"/uninstall/"+item.id,null,'稍等...').then(res => {
+                    if(res.code==0){
+                        setTimeout(function(){
+                            self.getinfo(item,index)
+                        },2000);
+                        
+                    }
+                })
+            }).catch(() => {});
+			
+        },
+         //重启软件
+         reboot(item,index){
+            self=this
+            self.$confirm('重启'+item.title+', 是否继续?',item.title, {
+                confirmButtonText: '重启',
+                cancelButtonText: '取消',
+                type: 'warning'
+            }).then(() => {
+                self.data.list[index].status=11
+                self.get(self.url+"/uninstall/"+item.id,null,'稍等...').then(res => {
+                    if(res.code==0){
+                        setTimeout(function(){
+                            self.getinfo(item,index)
+                        },2000);
+                        
+                    }
+                })
+            }).catch(() => {});
+			
+        },
+        getinfo(item,index){
+            self=this
+            self.get(self.url+"/get/"+item.id,null).then(res => {
+                if(res.code==0){
+                    self.data.list[index].status=res.data.status
+                    if (res.data.status==1||res.data.status==3||res.data.status==5||res.data.status==9||res.data.status==11){
+                        setTimeout(function(){
+                            self.getinfo(item,index)
+                        },5000);
+                    }else if(res.data.msg){
+                        self.$message({message: res.data.msg});
+                    }
+                }
+            }).catch(err => {
+                setTimeout(function(){self.getinfo(item,index)},5000);
+            })
+            
+        },
+        obtain(){
+			self=this
+			self.get(self.url+"/get",{'kw':self.kw,'status':self.status,'pagesize':self.data.pagesize,'pagenow':self.data.pagenow},'获取中...').then(res => {
+				self.data=res.data
+                for(var i=0;i<self.data.list.length;i++){
+                    if(self.data.list[i].title.indexOf('frp')!=-1 && self.data.list[i].status >= 4){
+                        self.get("/software/frp/run_status").then(res1 => {
+                            self.frp=res1.data
+                        })
+                    }
+                }
+			})
+		},
+        add(){
+			self=this
+			self.post(self.url+"/add",self.form,"请稍后...").then(res => {
+				self.admindialog.status=false
+				self.obtain()
+			}).catch(err => {
+                self.admindialog.status=false
+            })
+		},
+		upd(){
+			self=this
+			self.post(self.url+"/put",self.form,"请稍后...").then(res => {
+				self.admindialog.status=false
+			})
+		},
+		del(){
+			self=this
+			if(!self.adminChange.length){
+				self.$message.error('您未选择任何内容');
+			}else{
+				self.$confirm('此操作将永久删除该记录, 是否继续?', '删除提醒', {
+				confirmButtonText: '删除',
+				cancelButtonText: '取消',
+				type: 'warning'
+				}).then(() => {
+					id=[]
+					for(var i=0;i<self.adminChange.length;i++){
+						id.push(self.adminChange[i].id)
+					}
+					self.delete(self.url+"/delete",id,"正在删除中...").then(res => {
+						self.data.pagenow=1
+						self.obtain()
+						self.$message({type: 'success',message: '选中记录已删除!'});
+					})
+				}).catch(() => {});
+			}
+		},
+		
+        handleSelectionChange(val) {
+            self=this
+			self.adminChange=val
+		},
+		handleSizeChange(val) {
+            self=this
+			self.data.pagesize=val
+			self.obtain()
+		},
+		handleCurrentChange(val) {
+			self.data.pagenow=val
+			self.obtain()
+		}
+    }
+});
+</script>
+</html>

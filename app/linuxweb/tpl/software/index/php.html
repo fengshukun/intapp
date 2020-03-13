@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+<html>
+<head>
+	<meta charset="utf-8" />
+	<title>kcw-linux控制板</title>
+	<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
+	<meta name="HandheldFriendly" content="true"/>
+	<meta name="MobileOptimized" content="320"/>
+	<link rel="stylesheet" href="${static['static']}/element-ui/2.4.11/lib/theme-chalk/index.css"/>
+	<link rel="stylesheet" href="${static['static']}/font/font-awesome-4.7.0/css/font-awesome.min.css"/>
+	<link rel="stylesheet" href="/css/default.css"/>
+	<script src="${static['static']}/vue/2.6.10/vue.min.js"></script>
+	<script src="${static['static']}/element-ui/2.4.11/lib/index.js"></script>
+	<script src="${static['static']}/axios/0.18.0/axios.min.js"></script>
+	<script src="${static['static']}/qs/6.5.2/qs.min.js"></script>
+	<script src="${static['static']}/static/js/md5.min.js"></script>
+	<script src="/js/function.js"></script>
+</head>
+<style>
+*{padding:0px;margin:0px}
+.kcw-side-scroll::-webkit-scrollbar{width:0px}
+.kcw-side-scroll1::-webkit-scrollbar{width: 10px;  /*滚动条宽度*/height: 10px;  /*滚动条高度*/}
+/*定义滚动条轨道 内阴影+圆角*/  
+.kcw-side-scroll1::-webkit-scrollbar-track  {-webkit-box-shadow: inset 0 0 6px rgba(255, 255, 255, 0.3);border-radius: 10px;  /*滚动条的背景区域的圆角*/background-color: #ffffff;/*滚动条的背景颜色*/  }  
+/*定义滑块 内阴影+圆角*/  
+.kcw-side-scroll1::-webkit-scrollbar-thumb  {border-radius: 4px;  /*滚动条的圆角*/-webkit-box-shadow: inset 0 0 6px rgba(255, 255, 255, 0.3); background-color: rgb(196, 202, 196);  /*滚动条的背景颜色*/}
+
+</style>
+<body>
+<div id="app" style="background:#FFF">
+	<el-tabs v-model="activeName" @tab-click="handleClick" tab-position="left" :style="'height: '+(winheight)+'px;font-size:14px;'">
+		
+		<el-tab-pane name="base" label="基本配置">
+			<div class="kcw-side-scroll" :style="'overflow:auto;height: '+(winheight-40)+'px;'">
+					<el-form size="mini" ref="form" :model="data.base" label-width="160px">
+							<el-form-item label="是否允许文件上传">
+								<el-select v-model="data.base.file_uploads" placeholder="" style="width:80px">
+										<el-option label="开启" value="On"></el-option>
+										<el-option label="关闭" value="Off"></el-option>
+								</el-select>
+							</el-form-item>
+							<el-form-item label="上传大小限制">
+								<el-input v-model="data.base.upload_max_filesize" style="width:60px"></el-input> MB
+							</el-form-item>
+							<el-form-item label="上传数量限制">
+								<el-input v-model="data.base.max_file_uploads" style="width:60px"></el-input><span style="font-size:12px;color:#CCC"> 单个请求上传的文件的最大数量</span>
+							</el-form-item>
+							<el-form-item label="脚本的最大执行时间">
+								<el-input v-model="data.base.max_execution_time" style="width:60px"></el-input> 秒
+							</el-form-item>
+							<el-form-item label="最大输入时间">
+								<el-input v-model="data.base.max_input_time"  style="width:60px"></el-input> 秒
+							</el-form-item>
+							<el-form-item label="脚本内存限制">
+								<el-input v-model="data.base.memory_limit"  style="width:60px"></el-input> MB
+							</el-form-item>
+							<el-form-item label="post最大限制">
+								<el-input v-model="data.base.post_max_size"  style="width:60px"></el-input> MB
+							</el-form-item>
+							<el-form-item label="allow_url_fopen">
+								<el-select v-model="data.base.allow_url_fopen" placeholder="" style="width:80px">
+										<el-option label="开启" value="On"></el-option>
+										<el-option label="关闭" value="Off"></el-option>
+								</el-select><span style="font-size:12px;color:#CCC">是否允许将url（如http://或 ftp://）作为文件处理。</span>
+							</el-form-item>
+							<el-form-item label="allow_url_include">
+								<el-select v-model="data.base.allow_url_include" placeholder="" style="width:80px">
+										<el-option label="开启" value="On"></el-option>
+										<el-option label="关闭" value="Off"></el-option>
+								</el-select><span style="font-size:12px;color:#CCC">是否允许include/require以文件形式打开url（如http://或 ftp://）。</span>
+							</el-form-item>
+							<el-form-item label="default_socket_timeout">
+								<el-input v-model="data.base.default_socket_timeout"  style="width:60px"></el-input>
+								<span style="font-size:12px;color:#CCC"> 基于套接字的流的默认超时（秒）</span>
+							</el-form-item>
+					</el-form>
+					<el-button @click="upds('base')" size="mini" type="success">保存</el-button>
+			</div>
+		</el-tab-pane>
+		<el-tab-pane v-if="data.php.platform=='Linux'" name="phpfpm" label="性能配置">
+			<div class="kcw-side-scroll" :style="'overflow:auto;height: '+(winheight-40)+'px;'">
+				<el-form size="mini" ref="form" :model="data.phpfpm" label-width="160px">
+					<el-form-item label="运行模式">
+						<el-select v-model="data.phpfpm.pm" placeholder="" style="width:80px">
+								<el-option label="动态" value="dynamic"></el-option>
+								<el-option label="静态" value="static"></el-option>
+						</el-select>
+					</el-form-item>
+					<el-form-item label="max_children">
+						<el-input v-model="data.phpfpm.max_children" style="width:60px"></el-input>
+						<span style="font-size:12px;color:#CCC"> 允许创建的最大子进程数</span>
+					</el-form-item>
+					<el-form-item label="start_servers">
+						<el-input v-model="data.phpfpm.start_servers" style="width:60px"></el-input>
+						<span style="font-size:12px;color:#CCC"> 起始进程数（服务启动后初始进程数量）</span>
+					</el-form-item>
+					<el-form-item label="min_spare_servers">
+						<el-input v-model="data.phpfpm.min_spare_servers" style="width:60px"></el-input>
+						<span style="font-size:12px;color:#CCC"> 最小空闲进程数（清理空闲进程后的保留数量）</span>
+					</el-form-item>
+					<el-form-item label="max_spare_servers">
+						<el-input v-model="data.phpfpm.max_spare_servers" style="width:60px"></el-input>
+						<span style="font-size:12px;color:#CCC"> 最大空闲进程数（当空闲进程达到此值时清理）</span>
+					</el-form-item>
+				</el-form>
+				<el-button @click="upds('phpfpm')" size="mini" type="success">保存</el-button>
+			</div>
+		</el-tab-pane>
+        <el-tab-pane name="extenlist" label="php扩展">
+		<div :style="'height:'+(winheight-30)+'px;overflow:auto'">
+		% if config.app['appmode']=='develop':
+			<el-button @click="extenliststatus=true" size="mini" icon="fa fa-plus" title="添加扩展"></el-button>
+			% endif
+			<table style="width:100%">
+				<tr><td width='120px' style="height:40px">名称</td><td>说明</td><td width='60px' align="center">状态</td><td width='80px' align="center">操作</td></tr>
+				<tr v-for="item,index in data.extenlist" style="font-size:12px;color:#8F8F8F;height:20px">
+					<td>{{item.title}}</td>
+					<td>{{item.describes}}
+						% if config.app['appmode']=='develop':
+						{{item.filename}}
+						% endif
+					</td>
+					<td align="center">
+						<i v-if="item.status==4" class="fa fa-check-circle" aria-hidden="true" style="color:#67C23A"></i>
+						<i v-else class="fa fa-times" aria-hidden="true" style="color:red"></i>
+					</td>
+					<td align="center">
+						<span v-if="item.status==0">
+								<el-button @click="installext(item,index)" type='text' style="font-size:12px">安装</el-button>
+						</span>
+						<span v-else-if="item.status==1">
+								<el-button type='text' style="font-size:12px"><i class="el-icon-loading"></i>等待下载</el-button>
+						</span>
+						<span v-else-if="item.status==2">
+								<el-button type='text' style="font-size:12px"><i class="el-icon-loading"></i>正在下载</el-button>
+						</span>
+						<span v-else-if="item.status==3">
+								<el-button type='text' style="font-size:12px"><i class="el-icon-loading"></i>正在安装</el-button>
+						</span>
+						<span v-else-if="item.status==4">
+								<el-button @click="installext(item,index)" type='text' style="font-size:12px">卸载</el-button>
+						</span>
+						<span v-else-if="item.status==5">
+								<el-button type='text' style="font-size:12px"><i class="el-icon-loading"></i>正在卸载...</el-button>
+						</span>
+						% if config.app['appmode']=='develop':
+						<el-button @click="del_php_exten(item.id,index)" type='text' style="font-size:12px;color:red">删除</el-button>
+						% endif
+					</td>
+				</tr>
+			</table>
+		</div>
+		</el-tab-pane>
+        <!-- <el-tab-pane name="log" label="日志">{{data.log}}</el-tab-pane> -->
+		<el-tab-pane name="ini" label="php.ini文件">
+			<!-- <pre id="ini" contenteditable="true" :style="'border:1px solid #CCC;width:98%;height:'+(winheight-30)+'px;overflow:auto'">{{data.ini}}</pre> -->
+			<el-input type="textarea" :rows="winheight/32" v-model="data.ini"></el-input>
+			<el-button @click="upds('ini')" size="mini" type="success">保存</el-button>
+			<span style="color:#CCC;font-size:12px">该配置文件只对{{data.php.title}}有效，修改后重启{{data.php.title}}生效</span><br>
+		</el-tab-pane>
+		<el-tab-pane v-if="data.php.platform=='Linux'" name="www_conf" label="www.conf文件">
+			<!-- <pre id="www_conf" contenteditable="true" :style="'border:1px solid #CCC;width:98%;height:'+(winheight-30)+'px;overflow:auto'">{{data.www_conf}}</pre> -->
+			<el-input type="textarea" :rows="winheight/32" v-model="data.www_conf"></el-input>
+			<el-button @click="upds('www_conf')" size="mini" type="success">保存</el-button>
+			<span style="color:#CCC;font-size:12px">该配置文件只对{{data.php.title}}有效，修改后重启{{data.php.title}}生效</span><br>
+		</el-tab-pane>
+	  </el-tabs>
+	  <el-dialog title="添加php扩展" :visible.sync="extenliststatus" width="80%">
+			<el-form size="mini" ref="form" :model="extenlist" label-width="80px" label-position="left">
+				<el-form-item label="扩展名称">
+					<el-input placeholder="扩展名称" v-model="extenlist.title"></el-input>
+				</el-form-item>
+				<el-form-item label="扩展描述">
+					<el-input placeholder="扩展描述" v-model="extenlist.describes"></el-input>
+				</el-form-item>
+				<el-form-item label="扩展状态">
+					<el-select v-model="extenlist.status" placeholder="扩展状态">
+							<el-option label="未安装" value="0"></el-option>
+							<el-option label="已安装" value="4"></el-option>
+					</el-select>
+				</el-form-item>
+				<el-form-item label="扩展地址">
+						<el-input placeholder="扩展地址" v-model="extenlist.filename"></el-input>
+					</el-form-item>
+			</el-form>
+			<el-button @click="add_php_exten" size="mini" type="success">添加</el-button>
+	</el-dialog>
+</div>
+</body>
+<script>
+var vm = new Vue({
+	el: '#app',
+	data: {
+		winheight:document.documentElement.clientHeight,
+		winwidth:document.documentElement.clientWidth,
+		url:'/software/php',
+		id:"${id}",
+		activeName:"base",
+		data:{
+			php:{},
+			ini:'',
+			www_conf:'',
+			phpfpm:{
+				pm:'dynamic',max_children:'20',start_servers:'4',min_spare_servers:'4',max_spare_servers:'15'
+			},
+			log:'',
+			base:{
+				file_uploads:'On',
+				max_execution_time:'60',max_input_time:'60',memory_limit:'128',upload_max_filesize:'2',max_file_uploads:'20',post_max_size:'20',
+				allow_url_fopen:'On',allow_url_include:'Off',default_socket_timeout:'60',
+				max_children:'50'
+			},
+			extenlist:[]
+		},
+		extenliststatus:false,
+		extenlist:{pid:"${id}",title:'',describes:'',status:0,filename:'sh/install/php/extend/official.sh && bash official.sh php7.0 ftp'}
+	},
+	mounted(){
+		self=this
+		window.onresize = function(){
+			self.winheight=document.documentElement.clientHeight
+			self.winwidth=document.documentElement.clientWidth
+		}
+		self.gets(self.activeName)
+	},
+	methods: {
+		add_php_exten(){ //添加php扩展
+			self.post(self.url+"/add_php_exten",self.extenlist,'添加中...').then(res => {
+				if (res.code==0){
+					self.extenliststatus=false
+				}
+			})
+		},
+		del_php_exten(id,index){ //删除php扩展
+			self.post(self.url+"/del_php_exten/"+id,null,'删除中...').then(res => {
+				if (res.code==0){
+					self.data.extenlist.splice(index,1)
+				}
+			})
+		},
+		get_exten(item,index){
+			self=this
+			self.get(self.url+"/get_exten/"+item.id).then(res => {
+				// if (res.code==0){
+					self.data.extenlist[index].status=res.data.status
+					if (res.data.status==1||res.data.status==2||res.data.status==3||res.data.status==5){
+						setTimeout(function(){self.get_exten(item)},5000)
+					}
+				// }
+				// else{
+				// 	setTimeout(function(){self.get_exten(item)},2000)
+				// }
+			}).catch(err => {
+                setTimeout(function(){self.get_exten(item)},2000)
+            })
+		},
+		//安装和卸载扩展
+		installext(item,index){
+			self=this
+			self.post(self.url+"/installext/"+item.id,{paths:self.data.php.paths+self.data.php.title+"/"},'请稍后...').then(res => {
+				if (res.code==0){
+					if (item.status==0){
+						item.status=1
+						setTimeout(function(){
+							self.get_exten(item,index)
+						},5000)
+					}else if (item.status==4){
+						item.status=0
+					}
+				}
+			})
+		},
+		gets(url){
+			self=this
+			self.data.text=''
+			self.get(self.url+"/"+url+"/"+self.id,null,'获取中...').then(res => {
+				self.data.php=res.data.php
+				if(url=='ini'){
+					self.data.ini=res.data.ini
+				}else if(url=='www_conf'){
+					self.data.www_conf=res.data.www_conf
+				}else if(url=='base'){
+					if(res.data.base){
+						self.data.base=res.data.base
+					}
+				}else if(url=='phpfpm'){
+					if(res.data.phpfpm){
+						self.data.phpfpm=res.data.phpfpm
+					}
+				}else if(url=='log'){
+					self.data.log=res.data.log
+				}else if(url=='extenlist'){
+					self.data.extenlist=res.data.extenlist
+				}
+			})
+		},
+		upds(url){
+			self=this
+			if (url=='ini'){
+				// text=document.getElementById('ini').innerHTML
+				text=self.data.ini
+			}else if(url=='www_conf'){
+				// text=document.getElementById('www_conf').innerHTML
+				text=self.data.www_conf
+			}else if(url=='base'){
+				text=self.data.base
+			}else if(url=='phpfpm'){
+				text=self.data.phpfpm
+			}else if(url=='extenlist'){
+				text=self.data.extenlist
+			}else{
+				self.$message({type: 'error',message: "无法匹配内容"});
+				return
+			}
+			self.post(self.url+"/"+url+"/"+self.id+"/1",{text:text},'保存中...').then(res => {
+				if(res.code==0){
+					self.$message({type: 'success',message: res.msg});
+				}
+			})
+		},
+		handleClick(tab, event) {
+			self.gets(self.activeName)
+		}
+    }
+})
+</script>
+</html>

@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>kcw-linux控制板</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
+    <meta name="HandheldFriendly" content="true"/>
+    <meta name="MobileOptimized" content="320"/>
+    <link rel="stylesheet" href="${static['static']}/element-ui/2.4.11/lib/theme-chalk/index.css"/>
+    <link rel="stylesheet" href="${static['static']}/font/font-awesome-4.7.0/css/font-awesome.min.css"/>
+    <link rel="stylesheet" href="/css/default.css"/>
+    <script src="${static['static']}/vue/2.6.10/vue.min.js"></script>
+    <script src="${static['static']}/element-ui/2.4.11/lib/index.js"></script>
+    <script src="${static['static']}/axios/0.18.0/axios.min.js"></script>
+    <script src="${static['static']}/qs/6.5.2/qs.min.js"></script>
+    <script src="${static['static']}/static/js/md5.min.js"></script>
+    <script src="/js/function.js"></script>
+</head>
+<style>
+*{padding:0px;margin:0px}
+.el-header, .el-footer {
+    background-color: #B3C0D1;
+    line-height: 60px;
+    padding:0px;
+    }
+.kcw-side-scroll::-webkit-scrollbar{width:0px}
+</style>
+<body>
+<div id="app">
+        <div style="height:38px;padding-top:0px;background:#FFF;padding-top:10px;margin:10px auto;width:98%">
+            &nbsp&nbsp&nbsp<el-button size="mini" @click="admindialog={status:true,title:'添加网站'},admin={icon:'',domain:'',port:'80',title:'',describes:'',status:1,path:sysinfo.path+'/www/wwwroot/',phpeditionath:''}">添加网站</el-button>
+            &nbsp&nbsp&nbsp<el-button size="mini" @click="ssldomaindialog=true;ssldomain=[]">创建Let's Encrypt免费证书</el-button>
+        </div>
+        <div style="margin:10px auto;width:98%">
+            <el-table :data="data.list" :height="winheight-126" @selection-change="handleSelectionChange">
+                <el-table-column prop="domain" label="域名" width="180">
+                    <template slot-scope="scope">
+                        <ul>
+                            <li v-for="item in scope.row.domain">
+                                <a :href="'http://'+item" target="view_window">{{item}}</a>
+                            </li>
+                        </ul>
+                    </template>
+                </el-table-column>
+                <el-table-column prop="title" label="网站名称" width="200"></el-table-column>
+                <el-table-column prop="describes" label="备注"></el-table-column>
+                <!-- <el-table-column prop="phpeditionath" label="PHP版本" width="140">
+                    <template slot-scope="scope">
+                        <span v-if="scope.row.phpeditionath=='static'">纯静态html网站</span>
+                        <span v-else>{{scope.row.phpeditionath}}</span>
+                        <span>{{scope.row.servers}}</span>
+                    </template>
+                </el-table-column> --> 
+				<el-table-column prop="phpeditionath" label="目录" width="60">
+                    <template slot-scope="scope">
+                        <a v-if="data.kodexplorer" :href="data.kodexplorer+'/index.php?explorer&path='+scope.row.path"><img src="${static['img']}/icon/folder.png" style="height:26px"></a>
+                        <i v-else class="fa fa-clipboard" aria-hidden="true" title="复制目录地址"  @click="copy(scope.row.path)" style="cursor:pointer"></i>
+                    </template>
+				</el-table-column>
+				<!-- <el-table-column prop="path" label="状态" width="60">
+					<template slot-scope="scope">
+                            <i v-if="scope.row.status==1" class="fa fa-play" style="color:#67C23A;"></i>
+                            <i v-else class="fa fa-pause" style="color:red;"></i>
+					</template>
+				</el-table-column> -->
+                <el-table-column prop="addtime" label="创建时间" width="100">
+                    <template slot-scope="scope">
+                        <span v-html="time_date(scope.row.addtime)"></span>
+                    </template>
+                </el-table-column>
+                <el-table-column fixed="right" label="操作" width="180">
+                <template slot-scope="scope">
+						<el-button v-if="scope.row.title=='kodexplorer' || scope.row.title=='phpmyadmin'" disabled>设置</el-button>
+                        <el-button v-else @click="setups(scope.row)">设置</el-button>
+                        <el-button @click="del(scope.row,scope.$index)">删除</el-button>
+                </template>
+                </el-table-column>
+            </el-table>
+            <div class="block" style="background:#FFF;margin-top:4px;height:36px;padding-top:4px">
+                <el-pagination
+                    @size-change="handleSizeChange" @current-change="handleCurrentChange"
+                    :current-page="currentPage" :page-size="data.pagesize"
+                    layout="total, sizes, prev, pager, next, jumper" :total="data.count">
+                </el-pagination>
+            </div>
+        </div>
+    
+    <el-dialog :title="admindialog.title" :visible.sync="admindialog.status" width="500px">
+    <el-form ref="form" :model="admin" label-width="80px" label-position="left">
+	<el-form-item label="域名">
+        <el-input type="textarea" :autosize="{ minRows: 4, maxRows: 4}" placeholder="域名信息，支持多个域名，以换行符分隔" v-model="admin.domain"></el-input>
+    </el-form-item>
+    <el-form-item label="端口">
+        <el-input placeholder="端口" v-model="admin.port" style="width:80px"></el-input>
+    </el-form-item>
+    <el-form-item label="网站名">
+        <el-input placeholder="网站名" v-model="admin.title"></el-input>
+    </el-form-item>
+    <el-form-item label="备注">
+        <el-input placeholder="备注" v-model="admin.describes"></el-input>
+    </el-form-item>
+    <el-form-item label="网站目录">
+        <el-input placeholder="网站目录" v-model="admin.path"></el-input>
+        <i @click="folderopen()" class="fa fa-folder" aria-hidden="true" style="font-size:22px;cursor:pointer;color:#FFEB3B" title="文件夹选择"></i>
+	</el-form-item>
+	<el-form-item label="php版本">
+		<el-select v-model="admin.phpeditionath" placeholder="php版本">
+            <el-option v-for="item,index in phpeditionath"  :label="item.title" :value="item.title"></el-option>
+            <el-option label="纯静态" value="static"></el-option>
+            <el-option label="vue项目" value="vue"></el-option>
+		</el-select>
+	</el-form-item>
+    </el-form>
+    <span slot="footer" class="dialog-footer">
+        <el-button @click="admindialog.status = false">取 消</el-button>
+        <el-button v-if="admin.id" type="primary" @click="upd">修改</el-button>
+        <el-button v-else type="primary" @click="add">添加</el-button>
+    </span>
+    </el-dialog>
+    <el-dialog title="" :visible.sync="folder.status" width="800px">
+        <el-input v-model="folder.paths" size="mini" placeholder="" style="width:100%;float:left;" class="input-with-select;">
+            <template slot="prepend" title="根目录"><el-button @click="getlists('/')" size="mini" title="根目录"><img src="/images/icon/home.gif" style="height: 14px;" alt=""></el-button></template>
+            <template slot="prepend"><el-button size="mini" @click="getlistsht()" icon="el-icon-back" title="后退"></el-button></template>
+            <template slot="append"><el-button size="mini" icon="el-icon-arrow-right" @click="getlists(folder.paths)" title="前往"></el-button></template>
+        </el-input>
+        <div style="height:360px;overflow-y:auto;width:100%">
+            <table style="width:100%;">
+                <tr v-for="item in folder.data.list">
+                    <td v-if="item.types=='folder'" @click="getlists(folder.paths+item.name+'/')" class="wjj" style="cursor:pointer;height:20px"><i class="fa fa-folder" aria-hidden="true" style="font-size:18px;color:#FFEB3B"></i>{{item.name}}
+                        <span v-if="folder.paths=='/etc/letsencrypt/live/' || folder.paths=='/etc/letsencrypt/'" style="float:right">
+                            <el-button @click="del_folder(folder.paths+item.name+'/')" type="danger" size="mini" icon="el-icon-delete" circle title="删除"></el-button>
+                        </span>
+                    </td>
+                    <td v-else-if="item.name.indexOf('privkey')!=-1" @click="get_files(folder.paths+item.name)" class="wjj" style="cursor:pointer;height:20px"><i class="fa fa-key" aria-hidden="true" style="font-size:18px"></i>{{item.name}}</td>
+                    <td v-else-if="item.name.indexOf('pem')!=-1" @click="get_files(folder.paths+item.name)" class="wjj" style="cursor:pointer;height:20px"><i class="fa fa-file-powerpoint-o" aria-hidden="true" style="font-size:18px;"></i>{{item.name}}</td>
+                    <td v-else-if="item.name.indexOf('conf')!=-1" @click="get_files(folder.paths+item.name)" class="wjj" style="cursor:pointer;height:20px"><i class="fa fa-sun-o" aria-hidden="true" style="font-size:18px;"></i>{{item.name}}</td>
+                    <!-- <td v-else-if="folder.paths.indexOf('/etc/letsencrypt/live/')!=-1" @click="get_files(folder.paths+item.name)" class="wjj" style="cursor:pointer;height:20px">{{item.name}}</td> -->
+                </tr>
+            </table>
+        </div>
+        <el-button type="success" @click="admin.path=folder.data.paths;folder.status=false" size="mini">选择</el-button>
+    </el-dialog>
+    <el-dialog
+    title="网站设置" :visible.sync="web_set.status" width="800px">
+        <iframe :srcdoc="web_set.iframedoc"  style="margin-left:1px;margin-top:1px" frameborder="0"  width="99.9%" :height="(winheight-300)+'px'"></iframe>
+    </el-dialog>
+    <el-dialog title="Let's Encrypt免费证书" :visible.sync="ssldomaindialog" width="400px">
+        <div>
+            <el-input v-model="ssl.email" placeholder="请输入邮箱"></el-input>
+            <el-input v-for="item,index in ssl.domain" v-model="item.domain" placeholder="请输入域名"></el-input>
+        </div>
+        <br><br>
+        <el-button type="success" icon="fa fa-plus" @click="ssl.domain.push({domain:''})" size="mini" title="增加域名"></el-button>
+        <el-button type="success" @click="createssl" size="mini">提交</el-button><span>提交前，请确保80端口没有被占用</span>
+        <i @click="folderopen('/etc/letsencrypt/live/')" class="fa fa-folder" aria-hidden="true" style="font-size:22px;float:right;cursor:pointer;color:#FFEB3B" title="ssl列表"></i>
+    </el-dialog>
+    <el-dialog title="" :visible.sync="ssltextdialog" width="800px">
+        <el-input type="textarea" :autosize="{ minRows: (winheight/40), maxRows: (winheight/40)}" v-model="filetext"></el-input>
+		
+    </el-dialog>
+</div>
+</body>
+<style>
+.wjj{padding:6px;}
+.wjj:hover{background:#F5F7FA}
+</style>
+<script>
+new Vue({
+    el: '#app',
+    data() {
+        return {
+            winheight:document.documentElement.clientHeight,
+            winwidth:document.documentElement.clientWidth,
+            data:{
+                'pagesize':20,
+                'count':0,
+                'pagenow':1,
+                'list':[]
+            },
+            admin:{icon:'',domain:'',port:'80',title:'',describes:'',status:1,path:'',phpeditionath:''},admindialog:{status:false,title:'添加管理'},adminChange:[],currentPage: 5,
+            web_set:{status:false,iframedoc:''},
+            folder:{status:false,paths:'',
+                data:[]
+            },
+            phpeditionath:[],//php版本
+			sysinfo:{},
+            ssl:{
+                email:'',
+                domain:[]
+            },
+            ssldomaindialog:false,ssllistdialog:false,
+            filetext:'',ssltextdialog:false,
+        };
+    },
+    mounted(){
+        self=this
+        window.onresize = function(){
+            self.winheight=document.documentElement.clientHeight
+            self.winwidth=document.documentElement.clientWidth
+        }
+		self.get('/index/home/getinfo').then(res => {
+			self.sysinfo=res.data
+            self.post('/software/index/select',{'where':"title like 'php%' and title not like 'phpmyadmin%' and status >=4 and  title not like 'phpims%' and platform = '"+self.sysinfo.uname[0]+"'","field":'id,title'}).then(res => {
+                self.phpeditionath=res.data
+                self.obtain()
+            })
+		})
+		
+    },
+    methods: {
+        //sll证书
+        createssl(){
+            self=this
+			self.post("/app/web/createssl",self.ssl,'请稍后...').then(res => {
+                self.ssldomaindialog=false
+				if(res.code==0){
+                    self.$message({message: res.msg,type: 'success'});
+                }else{
+                    self.$message({message: res.msg,type: 'error'});
+                }
+			})
+        },
+        //删除文件夹
+        del_folder(paths){
+            self=this
+			self.get("/index/files/del_folder?paths="+paths,{},'获取中...').then(res => {
+                if(res.code==0){
+                    self.folderopen()
+                    self.$message({message: "成功",type: 'success'});
+                }
+			})
+        },
+        get_files(paths){
+            self=this
+			self.get("/index/files/get_files?paths="+paths,{},'获取中...').then(res => {
+                if(res.code==0){
+                    self.ssltextdialog=true
+                    self.filetext=res.data
+                }
+			})
+        },
+        getlistsht(){  //后退
+			self=this
+			arr=self.folder.data.paths.split("/");
+			if (arr.length>=3){
+				paths=self.folder.data.paths.replace(arr[arr.length-2]+"/","");
+				self.getlists(paths)
+			}
+		},
+        getlists(paths=''){
+			self=this
+			self.get("/index/files/lists",{'paths':paths}).then(res => {
+				self.folder.data=res.data
+				self.folder.paths=res.data.paths
+			})
+		},
+        folderopen(paths=false){
+            self=this
+            self.folder.status=true
+            if(paths)
+                self.folder.paths=paths
+            self.getlists(self.folder.paths)
+        },
+        setups(item){
+            "设置软件页面"
+            self=this
+            self.dialogtitle=item.title
+            self.dialogstatus=true
+            url="/app/index/web/web_set/"+item.id
+            self.getcontent(url).then(html => {
+                self.web_set.iframedoc=html
+                self.web_set.status=true
+            }).catch(err => {
+                if (err.response) {
+                    self.web_set.iframedoc=err.response.data
+                }else{
+                    self.$message({message: "网络异常",type: 'error'});
+                }
+            });
+        },
+        obtain(){
+			self=this
+			self.get("/app/web/get?pagesize="+self.data.pagesize+"&pagenow="+self.data.pagenow,{
+			
+			},'获取中...').then(res => {
+				self.data=res.data
+			})
+		},
+        add(){
+			self=this
+            var a= JSON.stringify(self.admin)
+            a=JSON.parse(a)
+            a['path']=self.admin.path
+			self.post("/app/web/add_web",a,"请稍后...").then(res => {
+				self.admindialog.status=false
+				self.obtain()
+			}).catch(err => {
+                self.admindialog.status=false
+            })
+		},
+		upd(){
+			self=this
+			
+		},
+		del(item,index){
+            "删除网站"
+            self=this
+            if(item.title.indexOf('phpmyadmin')!=-1 || item.title.indexOf('kodexplorer')!=-1){
+                self.$confirm('确定要删除这个应用码?', '删除提醒', {
+                    confirmButtonText: '删除',
+                    cancelButtonText: '取消',
+                    type: 'warning'
+                }).then(() => {
+                    self.delete("/app/web/del_web/"+item.id,null,"请稍后...").then(res => {
+                        if (res.code==0){
+                            self.data.list.splice(index,1)
+                        }
+                    })
+                }).catch(() => {});
+            }else{
+                self.$confirm('确定要删除该网站?', '删除提醒', {
+                    confirmButtonText: '删除',
+                    cancelButtonText: '取消',
+                    type: 'warning'
+                }).then(() => {
+                    self.$confirm('是否同时删除网站目录?', '网站目录', {
+                        confirmButtonText: '是',
+                        cancelButtonText: '否',
+                        type: 'success'
+                    }).then(() => {
+                        self.delete("/app/web/del_web/"+item.id+"/1",null,"请稍后...").then(res => {
+                            if (res.code==0){
+                                self.data.list.splice(index,1)
+                            }
+                        })
+                    }).catch(() => {
+                        self.delete("/app/web/del_web/"+item.id,null,"请稍后...").then(res => {
+                            if (res.code==0){
+                                self.data.list.splice(index,1)
+                            }
+                        })
+                    });
+                }).catch(() => {});
+            }
+            
+		},
+        handleSelectionChange(val) {
+            self=this
+			self.adminChange=val
+		},
+		handleSizeChange(val) {
+            self=this
+			self.data.pagesize=val
+			self.obtain()
+		},
+		handleCurrentChange(val) {
+			self.data.pagenow=val
+			self.obtain()
+		}
+    }
+});
+</script>
+</html>

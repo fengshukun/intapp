@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+<html>
+<head>
+	<meta charset="utf-8" />
+	<title>kcw-linux控制板</title>
+	<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
+	<meta name="HandheldFriendly" content="true"/>
+	<meta name="MobileOptimized" content="320"/>
+	<link rel="stylesheet" href="${static['static']}/element-ui/2.4.11/lib/theme-chalk/index.css"/>
+	<link rel="stylesheet" href="${static['static']}/font/font-awesome-4.7.0/css/font-awesome.min.css"/>
+	<link rel="stylesheet" href="/css/default.css"/>
+	<script src="${static['static']}/vue/2.6.10/vue.min.js"></script>
+	<script src="${static['static']}/element-ui/2.4.11/lib/index.js"></script>
+	<script src="${static['static']}/axios/0.18.0/axios.min.js"></script>
+	<script src="${static['static']}/qs/6.5.2/qs.min.js"></script>
+	<script src="${static['static']}/static/js/md5.min.js"></script>
+	<script src="/js/function.js"></script>
+</head>
+<style>
+*{padding:0px;margin:0px}
+.kcw-side-scroll::-webkit-scrollbar{width:0px}
+.kcw-side-scroll1::-webkit-scrollbar{width: 10px;  /*滚动条宽度*/height: 10px;  /*滚动条高度*/}
+/*定义滚动条轨道 内阴影+圆角*/  
+.kcw-side-scroll1::-webkit-scrollbar-track  {-webkit-box-shadow: inset 0 0 6px rgba(255, 255, 255, 0.3);border-radius: 10px;  /*滚动条的背景区域的圆角*/background-color: #ffffff;/*滚动条的背景颜色*/  }  
+/*定义滑块 内阴影+圆角*/  
+.kcw-side-scroll1::-webkit-scrollbar-thumb  {border-radius: 4px;  /*滚动条的圆角*/-webkit-box-shadow: inset 0 0 6px rgba(255, 255, 255, 0.3); background-color: rgb(196, 202, 196);  /*滚动条的背景颜色*/}
+
+</style>
+<body>
+<div id="app" style="background:#FFF">
+    <el-tabs v-model="activeName" @tab-click="handleClick" :style="'height: '+(winheight)+'px;'">
+        <el-tab-pane name="client" label="客户端配置">
+            <el-tabs tab-position="left" :style="'height: '+(winheight-56)+'px;'">
+                <el-tab-pane label="配置文件">
+                    <el-button size="mini" type="success" @click="restart('frpc')">重启</el-button>
+                    <el-button size="mini" type="danger" @click="stop('frpc')">停止</el-button>
+                    <el-input type="textarea" :rows="winheight/32" v-model="client.conf"></el-input>
+                    <el-button size="mini" @click="upd_client('ini')">保存</el-button>
+                </el-tab-pane>
+              </el-tabs>
+        </el-tab-pane>
+        <el-tab-pane name="server" label="服务端配置">
+            <el-tabs tab-position="left" :style="'height: '+(winheight-56)+'px;'">
+                <el-tab-pane label="基础配置">
+                    <div  :style="'height:'+(winheight-56)+'px;overflow-y:auto'">
+                            <el-button size="mini" type="success" @click="restart('frps')">重启</el-button>
+                            <el-button size="mini" type="danger" @click="stop('frps')">停止</el-button>
+                        <el-form ref="form" :model="server.base" label-width="130px" size="mini">
+                            <el-form-item label="bind_addr">
+                                <el-input v-model="server.base.bind_addr" style="width:102px"></el-input>
+                                <span> 这是服端监听的地址</span>
+                            </el-form-item>
+                            <el-form-item label="bind_port">
+                                <el-input v-model="server.base.bind_port" style="width:102px"></el-input>
+                                <span> 这是服端监听的端口</span>
+                            </el-form-item>
+                            <el-form-item label="bind_udp_port">
+                                <el-input v-model="server.base.bind_udp_port" style="width:102px"></el-input>
+                                <span> 这是upd监听的端口</span>
+                            </el-form-item>
+                            <el-form-item label="kcp_bind_port">
+                                <el-input v-model="server.base.kcp_bind_port" style="width:102px"></el-input>
+                                <span> 这是kcp监听的端口</span>
+                            </el-form-item>
+                            <el-form-item label="vhost_http_port">
+                                <el-input v-model="server.base.vhost_http_port" style="width:102px"></el-input>
+                                <span> 这是http监听的端口</span>
+                            </el-form-item>
+                            <el-form-item label="vhost_https_port">
+                                <el-input v-model="server.base.vhost_https_port" style="width:102px"></el-input>
+                                <span> 这是https监听的端口</span>
+                            </el-form-item>
+                            <el-form-item label="dashboard_addr">
+                                <el-input v-model="server.base.dashboard_addr" style="width:102px"></el-input>
+                                <span> 这是dashboard监听的ip地址</span>
+                            </el-form-item>
+                            <el-form-item label="dashboard_port">
+                                <el-input v-model="server.base.dashboard_port" style="width:102px"></el-input>
+                                <span> 这是dashboard监听的端口</span>
+                            </el-form-item>
+                            <el-form-item label="dashboard_user">
+                                <el-input v-model="server.base.dashboard_user" style="width:102px"></el-input>
+                                <span> 这是dashboard监听的用户名</span>
+                            </el-form-item>
+                            <el-form-item label="dashboard_pwd">
+                                <el-input v-model="server.base.dashboard_pwd" style="width:102px"></el-input>
+                                <span> 这是dashboard监听的密码</span>
+                            </el-form-item>
+                            <el-form-item label="token">
+                                <el-input v-model="server.base.token" style="width:102px"></el-input>
+                                <span> 这是frp的验证机制</span>
+                            </el-form-item>
+                            <el-form-item label="vhost_http_timeout">
+                                <el-input v-model="server.base.vhost_http_timeout" style="width:102px"></el-input>
+                                <span> 这是frp的验证串的有效时间</span>
+                            </el-form-item>
+                            <el-form-item label="log_level">
+                                <el-input v-model="server.base.log_level" style="width:102px"></el-input>
+                                <span></span>
+                            </el-form-item>
+                            <el-form-item label="log_max_days">
+                                <el-input v-model="server.base.log_max_days" style="width:102px"></el-input>
+                                <span>日志保持多少天</span>
+                            </el-form-item>
+                            <el-form-item label="disable_log_color">
+                                <el-input v-model="server.base.disable_log_color" style="width:102px"></el-input>
+                                <span></span>
+                            </el-form-item>
+                            <el-form-item label="allow_ports">
+                                <el-input v-model="server.base.allow_ports"></el-input>
+                                <span>白名单端口</span>
+                            </el-form-item>
+                            <el-form-item label="max_pool_count">
+                                <el-input v-model="server.base.max_pool_count" style="width:102px"></el-input>
+                                <span>最大值进程数</span>
+                            </el-form-item>
+                            <el-form-item label="max_ports_per_client">
+                                <el-input v-model="server.base.max_ports_per_client" style="width:102px"></el-input>
+                                <span></span>
+                            </el-form-item>
+                            <el-form-item label="subdomain_host">
+                                <el-input v-model="server.base.subdomain_host"></el-input>
+                                <span></span>
+                            </el-form-item>
+                            <el-form-item label="tcp_mux">
+                                <el-input v-model="server.base.tcp_mux" style="width:102px"></el-input>
+                                <span></span>
+                            </el-form-item>
+                            <el-form-item>
+                                <el-button type="primary" @click="upd_server('base')">保存</el-button>
+                            </el-form-item>
+                        </el-form>
+                    </div>
+                            
+                </el-tab-pane>
+                <el-tab-pane label="配置文件">
+                    <el-input type="textarea" :rows="winheight/32" v-model="server.conf"></el-input>
+                    <el-button type="primary" @click="upd_server('ini')">保存</el-button>
+                </el-tab-pane>
+              </el-tabs>
+        </el-tab-pane>
+    </el-tabs>
+</div>
+</body>
+<script>
+var vm = new Vue({
+	el: '#app',
+	data: {
+		winheight:document.documentElement.clientHeight,
+		winwidth:document.documentElement.clientWidth,
+        server:{
+            conf:'服务端配置文件',
+            base:{
+                bind_addr:'0.0.0.0',
+                bind_port:'7000',
+                bind_udp_port:'7001',
+                kcp_bind_port:'7000',
+                vhost_http_port:'80',
+                vhost_https_port:'443',
+                dashboard_addr:'0.0.0.0',
+                dashboard_port:'7500',
+                dashboard_user:'admin',
+                dashboard_pwd:'admin',
+                token:'intapp',
+                vhost_http_timeout:'60',
+                log_level:'info',
+                log_max_days:'3',
+                disable_log_color:'false',
+                allow_ports:'2000-3000,3001,3003,4000-50000',
+                max_pool_count:'5',
+                max_ports_per_client:'0',
+                subdomain_host:'kcwebapp.cn',
+                tcp_mux:'true',
+            }
+        },
+        client:{
+            conf:'客户端配置文件'
+        },
+        activeName:'server',
+		id:"${id}",
+    },
+    mounted(){
+		self=this
+		self.handleClick()
+    },
+    methods: {
+        restart(types='frps'){
+            self=this
+			self.get("/software/frp/restart/"+types,null,'重启中...').then(res => {
+				if(res.code==0){
+                    self.$message({type: 'success',message: res.msg});
+                }
+			})
+        },
+        stop(types='frps'){
+            self=this
+			self.get("/software/frp/stop/"+types,null,'停止中...').then(res => {
+				if(res.code==0){
+                    self.$message({type: 'success',message: res.msg});
+                }
+			})
+        },
+		get_server(){
+			self=this
+			self.get("/software/frp/get_server",null,'获取中...').then(res => {
+				self.server.conf=res.data.conf
+                if (res.data.base.bind_addr){
+                    self.server.base=res.data.base
+                }
+			})
+		},
+        upd_server(types='ini'){
+            self=this
+			self.post("/software/frp/upd_server/"+types,self.server,'请稍后...').then(res => {
+				if(res.code==0){
+                    self.$message({type: 'success',message: res.msg});
+                }
+			})
+        },
+        get_client(){
+			self=this
+			self.get("/software/frp/get_client",null,'获取中...').then(res => {
+				self.client=res.data
+			})
+		},
+        upd_client(types='ini'){
+            self=this
+			self.post("/software/frp/upd_client/"+types,self.client,'请稍后...').then(res => {
+				if(res.code==0){
+                    self.$message({type: 'success',message: res.msg});
+                }
+			})
+        },
+        handleClick(tab='', event=''){
+            self=this
+            if(self.activeName=='server'){
+                self.get_server()
+            }else if(self.activeName=='client'){
+                self.get_client()
+            }
+        }
+    }
+});
+</script>
+</html>

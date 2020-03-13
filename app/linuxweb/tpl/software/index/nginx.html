@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+<html>
+<head>
+	<meta charset="utf-8" />
+	<title>kcw-linux控制板</title>
+	<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
+	<meta name="HandheldFriendly" content="true"/>
+	<meta name="MobileOptimized" content="320"/>
+	<link rel="stylesheet" href="${static['static']}/element-ui/2.4.11/lib/theme-chalk/index.css"/>
+	<link rel="stylesheet" href="${static['static']}/font/font-awesome-4.7.0/css/font-awesome.min.css"/>
+	<link rel="stylesheet" href="/css/default.css"/>
+	<script src="${static['static']}/vue/2.6.10/vue.min.js"></script>
+	<script src="${static['static']}/element-ui/2.4.11/lib/index.js"></script>
+	<script src="${static['static']}/axios/0.18.0/axios.min.js"></script>
+	<script src="${static['static']}/qs/6.5.2/qs.min.js"></script>
+	<script src="${static['static']}/static/js/md5.min.js"></script>
+	<script src="/js/function.js"></script>
+
+<link rel="stylesheet" href="${static['static']}/editor.md/1.5.0/css/editormd.css"/>
+<link rel="stylesheet" href="${static['static']}/editor.md/1.5.0/css/editormd.preview.css"/>
+<script src="${static['static']}/editor.md/1.5.0/examples/js/jquery.min.js"></script>
+<script src="${static['static']}/editor.md/1.5.0/lib/marked.min.js"></script>
+<script src="${static['static']}/editor.md/1.5.0/lib/prettify.min.js"></script>
+<script src="${static['static']}/editor.md/1.5.0/lib/raphael.min.js"></script>
+<script src="${static['static']}/editor.md/1.5.0/lib/underscore.min.js"></script>
+<script src="${static['static']}/editor.md/1.5.0/lib/sequence-diagram.min.js"></script>
+<script src="${static['static']}/editor.md/1.5.0/lib/flowchart.min.js"></script>
+<script src="${static['static']}/editor.md/1.5.0/lib/jquery.flowchart.min.js"></script>
+<script src="${static['static']}/editor.md/1.5.0/editormd.js"></script>
+</head>
+<style>
+*{padding:0px;margin:0px}
+.kcw-side-scroll::-webkit-scrollbar{width:0px}
+.kcw-side-scroll1::-webkit-scrollbar{width: 10px;  /*滚动条宽度*/height: 10px;  /*滚动条高度*/}
+/*定义滚动条轨道 内阴影+圆角*/  
+.kcw-side-scroll1::-webkit-scrollbar-track  {-webkit-box-shadow: inset 0 0 6px rgba(255, 255, 255, 0.3);border-radius: 10px;  /*滚动条的背景区域的圆角*/background-color: #ffffff;/*滚动条的背景颜色*/  }  
+/*定义滑块 内阴影+圆角*/  
+.kcw-side-scroll1::-webkit-scrollbar-thumb  {border-radius: 4px;  /*滚动条的圆角*/-webkit-box-shadow: inset 0 0 6px rgba(255, 255, 255, 0.3); background-color: rgb(196, 202, 196);  /*滚动条的背景颜色*/}
+
+</style>
+<body>
+<div id="app" style="background:#FFF">
+	<el-tabs tab-position="left" :style="'height: '+(winheight)+'px;'">
+		<!-- <el-tab-pane label="性能调试">性能调试</el-tab-pane> -->
+		<el-tab-pane label="配置文件">
+			<!-- <pre id="nginxconf" contenteditable="true" :style="'border:1px solid #CCC;width:98%;height:'+(winheight-30)+'px;overflow:auto'" v-html="data.conf.nginx"></pre> -->
+			<el-input type="textarea" :rows="winheight/30" v-model="data.conf.nginx"></el-input>
+			<el-button @click="updnginx" size="mini" type="success">保存</el-button>
+			<span style="color:#CCC;font-size:12px">该配置文件只对该网站有效，修改后重启nginx生效</span><br>
+		</el-tab-pane>
+		<!-- <el-tab-pane label="日志">
+			<pre :style="'color:#CCCCCC;background:#1E1E1E;height:'+(winheight-30)+'px;overflow:auto'" v-html="data.logs.access"></pre>
+		</el-tab-pane>
+		<el-tab-pane label="错误日志">
+				<pre :style="'color:#CCCCCC;background:#1E1E1E;height:'+(winheight-30)+'px;overflow:auto'" v-html="data.logs.error"></pre>
+		</el-tab-pane> -->
+	  </el-tabs>
+	<!-- <el-radio-group type="text" @change="handleSelect" size="mini" v-model="activeIndex" style="width:100%">
+		<el-radio-button label="performance">性能调试</el-radio-button>
+		<el-radio-button label="config">配置文件</el-radio-button>
+		<el-radio-button label="logs">日志</el-radio-button>
+		<el-radio-button label="errorlogs">错误日志</el-radio-button>
+	</el-radio-group>
+	<div v-if="activeIndex=='performance'" :style="'width:100;height:'+(winheight-30)+'px;overflow:hidden;overflow-y:auto;'">
+			性能调试
+	</div>
+	<div v-else-if="activeIndex=='config'" :style="">
+		<div id="confediteditormd"></div>
+	</div>
+	<div v-else-if="activeIndex=='logs'" :style="">
+		<div id="logsediteditormd"></div>
+	</div>
+	<div v-else-if="activeIndex=='errorlogs'" :style="">
+		<div id="errorlogsediteditormd"></div> -->
+	</div>
+</div>
+</body>
+<script>
+var vm = new Vue({
+	el: '#app',
+	data: {
+		winheight:document.documentElement.clientHeight,
+		winwidth:document.documentElement.clientWidth,
+		activeIndex: 'performance',
+		url:'/software/nginx',
+		id:"${id}",
+		data:{
+			conf:{nginx:''},
+			logs:{error:'',access:''},
+		},
+		confediteditormd:null,logsediteditormd:null,errorlogsediteditormd:null,
+	},
+	mounted(){
+		self=this
+		window.onresize = function(){
+			self.winheight=document.documentElement.clientHeight
+			self.winwidth=document.documentElement.clientWidth
+		}
+		self.obtain()
+	},
+	methods: {
+		obtain(){
+			self=this
+			self.get(self.url+"/index/"+self.id,null,'获取中...').then(res => {
+				self.data=res.data
+			})
+			
+		},
+		updnginx(){
+			// self.data.conf.nginx=document.getElementById('nginxconf').innerHTML
+			// alert(self.data.conf.nginx)
+			self.post(self.url+"/index/"+self.id+"/updconf",{text:(self.data.conf.nginx)},'保存中...').then(res => {
+				if(res.code==0){
+					self.$message({type: 'success',message: res.msg});
+				}
+			})
+		}
+    }
+})
+</script>
+</html>

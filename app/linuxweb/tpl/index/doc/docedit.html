@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+<html>
+<head>
+	<meta charset="utf-8" />
+		<title>kcw-linux控制板</title>
+		<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
+		<meta name="HandheldFriendly" content="true"/>
+		<meta name="MobileOptimized" content="320"/>
+		<link rel="stylesheet" href="${static['static']}/element-ui/2.4.11/lib/theme-chalk/index.css"/>
+		<link rel="stylesheet" href="${static['static']}/font/font-awesome-4.7.0/css/font-awesome.min.css"/>
+		<link rel="stylesheet" href="/css/default.css"/>
+		<script src="${static['static']}/vue/2.6.10/vue.min.js"></script>
+		<script src="${static['static']}/element-ui/2.4.11/lib/index.js"></script>
+		<script src="${static['static']}/axios/0.18.0/axios.min.js"></script>
+		<script src="${static['static']}/qs/6.5.2/qs.min.js"></script>
+		<script src="${static['static']}/static/js/md5.min.js"></script>
+		<script src="/js/function.js"></script>
+<link rel="stylesheet" href="${static['static']}/editor.md/1.5.0/css/editormd.css"/>
+<link rel="stylesheet" href="${static['static']}/editor.md/1.5.0/css/editormd.preview.css"/>
+<script src="${static['static']}/editor.md/1.5.0/examples/js/jquery.min.js"></script>
+<script src="${static['static']}/editor.md/1.5.0/lib/marked.min.js"></script>
+<script src="${static['static']}/editor.md/1.5.0/lib/prettify.min.js"></script>
+<script src="${static['static']}/editor.md/1.5.0/lib/raphael.min.js"></script>
+<script src="${static['static']}/editor.md/1.5.0/lib/underscore.min.js"></script>
+<script src="${static['static']}/editor.md/1.5.0/lib/sequence-diagram.min.js"></script>
+<script src="${static['static']}/editor.md/1.5.0/lib/flowchart.min.js"></script>
+<script src="${static['static']}/editor.md/1.5.0/lib/jquery.flowchart.min.js"></script>
+<script src="${static['static']}/editor.md/1.5.0/editormd.js"></script>
+<style>
+.kcw-side-scroll::-webkit-scrollbar{width:0px}
+.kcw-side-scroll1::-webkit-scrollbar{width: 10px;  /*滚动条宽度*/height: 10px;  /*滚动条高度*/}
+/*定义滚动条轨道 内阴影+圆角*/  
+.kcw-side-scroll1::-webkit-scrollbar-track  {-webkit-box-shadow: inset 0 0 6px rgba(255, 255, 255, 0.3);border-radius: 10px;  /*滚动条的背景区域的圆角*/background-color: #ffffff;/*滚动条的背景颜色*/  }  
+/*定义滑块 内阴影+圆角*/  
+.kcw-side-scroll1::-webkit-scrollbar-thumb  {border-radius: 4px;  /*滚动条的圆角*/-webkit-box-shadow: inset 0 0 6px rgba(255, 255, 255, 0.3); background-color: rgb(196, 202, 196);  /*滚动条的背景颜色*/}
+</style>
+<style>
+</style>
+</head>
+<body style="height:100%;overflow:hidden;">
+<div id="app">
+	<div style="background:#FFF;">
+				<div v-if="wiki.type=='sel'" :style="'background:#FFF;height:'+(winheight)+'px;'">
+					<el-col :style="'width:'+240+'px;height:'+(winheight)+'px;overflow:hidden;border-right:1px solid #CCC;'">
+						<div style="height:80px;border-bottom:1px solid #CCC;">
+							<el-dropdown style="float:left;max-width:calc(100% - 130px);padding-top:5px;overflow:hidden;">
+								<el-button size="mini">
+									<span v-html="editionvalue"></span><i class="el-icon-arrow-down el-icon--right"></i>
+								</el-button>
+								<el-dropdown-menu slot="dropdown">
+									<el-dropdown-item v-for="item,index1 in edition" @click.native="editionvalue=item.title;editionid=item.id;editionget(item.id)" v-html='item.title'></el-dropdown-item>
+								</el-dropdown-menu>
+							</el-dropdown>
+							<el-button size="mini" @click="editionstatus=true" style="float:left;width:60px;margin-top:5px">管理</el-button>
+							<!-- <el-button size="mini" style="float:right;width:60px;margin-top:5px">预览</el-button> -->
+
+							<div style="float:left;width:100%;margin-top:10px">
+								<el-input @blur="gettreelist()" v-model="title" placeholder="输入关键字搜索wiki" size="mini" style="float:left;width:calc(100% - 61px)"></el-input>
+								<el-dropdown style="float:right;width:60px;">
+									<el-button size="mini" style="width:100%;">添加<i class="el-icon-arrow-down el-icon--right"></i></el-button>
+									<el-dropdown-menu slot="dropdown">
+										<el-dropdown-item @click.native="addfolder={'status':true,'title':'页面'};treeitem={doclist_id:editionid,pid:0,types:1,icon:'',opens:1,contents:'',title:'',describes:''}">添加页面</el-dropdown-item>
+										<el-dropdown-item @click.native="addfolder={'status':true,'title':'目录'};treeitem={doclist_id:editionid,pid:0,types:0,icon:'',opens:1,contents:'',title:'',describes:''}">添加目录</el-dropdown-item>
+									</el-dropdown-menu>
+								</el-dropdown>
+							</div>
+							
+							
+							
+						</div>
+						<el-tree :data="tree" :props="defaultProps" node-key="id" :default-expanded-keys=defaultexpandedkeys  @node-click="handleNodeClick" class="kcw-side-scroll" style="height:calc(100% - 80px);width:100%;overflow:hidden;overflow-y:auto;">
+							<p slot-scope="{node,data}" style="width:100%">
+								<img v-if="data.types==0" src="/images/icon/file.gif" style="float:left;height:22px;">
+								<img v-else src="/images/icon/doc.gif" style="float:left;height:22px;">
+								<el-tooltip v-if="data.describes" class="item" effect="dark" :content="data.describes" placement="right">
+									<span v-html="data.title" @click="gettreetext(data.id,data.types)" style="float:left;width:140px;overflow:hidden;"></span>
+								</el-tooltip>
+								<span v-else v-html="data.title" @click="gettreetext(data.id,data.types)" style="width:140px;overflow:hidden;"></span>
+	
+	
+								<el-dropdown v-if="data.types==0" style="float:right;margin-top:2px;margin-right:2px;">
+									<span class="el-dropdown-link">
+										<i class="el-icon-more"></i>
+									</span>
+									<el-dropdown-menu slot="dropdown">
+										<el-dropdown-item @click.native="addfolder={'status':true,'title':'页面'};treeitem={doclist_id:editionid,pid:data.id,types:1,icon:'',opens:1,contents:'',title:'',describes:''}"><img src="/images/icon/doc.gif" style="float:left;height:22px;margin-top:6px;">添加页面</el-dropdown-item>
+										<el-dropdown-item @click.native="addfolder={'status':true,'title':'目录'};treeitem={doclist_id:editionid,pid:data.id,types:0,icon:'',opens:1,contents:'',title:'',describes:''}"><img src="/images/icon/file.gif" style="float:left;height:22px;margin-top:6px;">添加目录</el-dropdown-item>
+										<el-dropdown-item @click.native="addfolder={'status':true,'title':'重命名'};treeitem=data;treeitem.doclist_id=editionid"><i class="el-icon-edit" style="font-size:20px"></i>&nbsp重命名</el-dropdown-item>
+										<el-dropdown-item @click.native="treedel(data.id)"><i class="el-icon-delete" style="font-size:20px"></i>&nbsp删除</el-dropdown-item>
+									</el-dropdown-menu>
+								</el-dropdown>
+	
+								<el-tooltip v-else class="item" @click.native="treedel(data.id)" effect="dark" content="删除" placement="right">
+									<i class="el-icon-delete" style="float:right;margin-top:3px;margin-right:2px;"></i>
+								</el-tooltip>
+							</p>
+						</el-tree>
+					</el-col>
+					<el-col :style="'padding-left:30px;width:calc(100% - 270px);height:'+(winheight)+'px;overflow:hidden;'">
+						<div v-if="treeitem.id" style="min-width:800px;width:100%;height:100%;overflow:hidden;">
+							<div style="border-bottom :1px solid #CCC;height:60px">
+									<h3 v-html="treeitem.title">wiki文档</h3>
+									<span style="float:left;padding-top:6px;">更新与<span v-html="time_date(treeitem.updtime)"></span></span>
+									<span style="float:right;"><el-button @click="wiki.type='edit';editeditormdfun()" icon="el-icon-edit" size="mini">编辑</el-button></span>
+							</div>
+							<div class="kcw-side-scroll1" :style="'margin:10px auto;width:98%;height:'+(winheight-82)+'px;overflow:hidden;overflow-y:auto;'">
+								<div id="contenttext" style="width:98%"></div>
+							</div>
+						</div>
+						<div v-else>
+							<h1 style="margin-top:160px;text-align:center">请点右边节点来查看内容</h1>
+						</div>
+					</el-col>
+				</div>
+				<div v-else-if="wiki.type=='edit'" class="background" style="width:100%;padding-top:10px;">
+					<div style="height:38px;background:#FFF;margin:0 auto;width:96%;padding:0.5%;">
+						<el-button @click="wiki.type='sel'" icon="el-icon-arrow-left" circle></el-button>wuki编辑
+					</div>
+					<div style="background:#FFF;margin:0 auto;width:96%;padding:0.5%;">
+						<el-form ref="form" label-width="80px" size="mini" label-position="right">
+							<el-form-item label="页面标题">
+							  <el-input v-model="treeitem.title"></el-input>
+							</el-form-item>
+							<el-form-item label="描述">
+							<el-input type="textarea" v-model="treeitem.describes"></el-input>
+							</el-form-item>
+						</el-form>
+						<div id="editeditormd"></div>
+					</div>
+				</div>
+
+
+
+
+	</div>
+
+
+<el-dialog
+:title="addfolder.title"
+:visible.sync="addfolder.status"
+width="30%">
+<el-form ref="form" :model="treeitem" class="demo-form-inline">
+<el-form-item >
+	<el-input :placeholder="addfolder.title+'名称'" v-model="treeitem.title"></el-input>
+</el-form-item>
+<el-form-item>
+	<el-input type="textarea" :placeholder="addfolder.title+'备注'" v-model="treeitem.describes"></el-input>
+</el-form-item>
+</el-form>
+<span slot="footer" class="dialog-footer">
+	<el-button @click="addfolder.status = false">取 消</el-button>
+	<el-button v-if="treeitem.id" type="primary" @click="treeupd">重命名</el-button>
+	<el-button v-else type="primary" @click="treeadd">确 定</el-button>
+</span>
+</el-dialog>
+
+<el-dialog
+title="版本管理"
+:visible.sync="editionstatus"
+width="700px" style="min-height:500px">
+<div>
+	<el-popover
+		placement="left"
+		width="400"
+		trigger="click">
+		<el-form ref="form" :model="editionadd" label-width="80px" size="mini">
+			<el-form-item label="起点">
+				<el-dropdown>
+					<el-button size="mini">
+						<span v-html="editionvalue"></span><i class="el-icon-arrow-down el-icon--right"></i>
+					</el-button>
+					<el-dropdown-menu slot="dropdown">
+						<el-dropdown-item v-for="item,index1 in edition" @click.native="editionvalue=item.title;editionid=item.id;editionget(item.id)" v-html='item.title'></el-dropdown-item>
+					</el-dropdown-menu>
+				</el-dropdown>
+			</el-form-item>
+			
+			<el-form-item label="版本号">
+				<el-input v-model="editionadd.title"></el-input>
+			</el-form-item>
+			<el-form-item label="备注">
+				<el-input v-model="editionadd.describes"></el-input>
+			</el-form-item>
+			<el-form-item>
+				<el-button type="primary" @click="editionadds">提交</el-button>
+			</el-form-item>
+		</el-form>
+		<el-button slot="reference">新建版本</el-button>
+	</el-popover>
+	<table style="width:100%">
+		<tr v-for="item in edition" style="height:36px;border-bottom:1px solid #000">
+			<td v-html="item.title" width="120px"></td>
+			<td v-html="item.describes">描述</td>
+			<td width="120px">
+				<el-tooltip v-if="item.defaults!=1" class="item" effect="dark" content="设置为默认" placement="right">
+					<el-button @click="editiondefs(item.id)" icon="el-icon-setting" circle size="small"></el-button>
+				</el-tooltip>
+				<el-tooltip v-if="item.defaults!=1" class="item" effect="dark" content="删除" placement="right">
+					<el-button @click="editiondels(item.id)" type="danger" icon="el-icon-delete" circle size="small"></el-button>
+				</el-tooltip>
+				<el-button v-else size="small" disabled>默认版本</el-button>
+			</td>
+		</tr>
+	</table>
+</div>
+</el-dialog>
+
+</div>
+<script>
+new Vue({
+	el: '#app',
+	data() {
+      return {
+		winheight:document.documentElement.clientHeight,
+		winwidth:document.documentElement.clientWidth,
+		tree:{},
+		treeitem:{doclist_id:'',pid:0,types:0,icon:'',opens:1,contents:'',title:'名称',describes:'描述'},contenttext:'',
+		activeName: 'wiki',
+		title:'',
+		defaultProps: {
+          children: 'level',
+          label: 'title'
+		},
+		defaultexpandedkeys:[], //默认展开id是7和8的节点
+		addfolder:{status:false,t:'添加页面'},
+		wiki:{
+			type:'sel'
+		},
+		edition: [],
+		editionvalue: '',editionid:'',
+		editionstatus:false,
+		editionadd:{title:'',describes:''}
+      };
+    },
+	mounted(){
+		self=this
+		window.onresize = function(){
+			self.winheight=document.documentElement.clientHeight
+			self.winwidth=document.documentElement.clientWidth
+		}
+		self.getedition()
+	},
+	methods: {
+        handleClick(tab, event) {
+			// console.log(tab, event);
+		},
+		handleNodeClick(data){
+			self=this
+			// if (data.types==1){
+			// 	self.gettreetext(data.id)
+			// }
+		},
+		//获取版本
+		getedition(){
+			self=this
+			self.get('/index/doc/edition/${id}').then(res => {
+				self.edition=res.data
+				self.editionvalue=res.data[res.data.length-1].title+"("+res.data[res.data.length-1].describes+")"
+				for (var i=0;i<res.data.length;i++){
+					if (res.data[i].defaults){
+						self.editionid=res.data[i].id
+						self.editionvalue=res.data[i].title
+						self.treeitem.doclist_id=self.editionid
+						self.edition[i].title=self.edition[i].title
+						self.gettreelist()
+						break
+					}
+				}
+				
+			})
+		},
+		//获取节点列表
+		gettreelist(){
+			self=this
+			self.get('/index/doc/tree/'+self.editionid+"/"+self.title,null,'加载中...').then(res => {
+				self.tree=res.data
+			})
+		},
+		//获取节点文本
+		gettreetext(id,types=1){
+			if (types){
+				self=this
+				self.get('/index/doc/treetext/'+self.editionid+"/"+id,null,'加载中...').then(res => {
+					self.treeitem=res.data
+					$("#contenttext").html("")
+					setTimeout(function(){
+						editormd.markdownToHTML("contenttext", {
+							markdown        : res.data.contents,
+							htmlDecode: true,
+							emoji           : true,
+							taskList        : true,
+							tex             : true,  // 默认不解析
+							flowChart       : true,  // 默认不解析
+							sequenceDiagram : true,  // 默认不解析
+						});
+					},50)
+				})
+			}
+		},
+		//添加节点
+		treeadd(){
+			self=this
+			self.post('/index/doc/treeadd/'+self.treeitem.doclist_id+"/"+self.treeitem.pid,self.treeitem).then(res => {
+				self.addfolder.status = false
+				self.gettreelist()
+			})
+		},
+		//更新节点包括节点文本
+		treeupd(){
+			self=this
+			// self.treeitem['contents']=encodeURIComponent(self.treeitem['contents'])
+			self.post('/index/doc/treeupd/'+self.treeitem.doclist_id,self.treeitem).then(res => {
+				self.addfolder.status = false
+				// self.treeitem['contents']=decodeURIComponent(self.treeitem['contents'])
+				self.$message({message:"更新"+res.msg,type: 'success'});
+			})
+		},
+		//删除节点
+		treedel(id){
+			self=this
+			self.$confirm('此操作将永久删除该记录, 是否继续?', '删除提醒', {
+			confirmButtonText: '删除',
+			cancelButtonText: '取消',
+			type: 'warning'
+			}).then(() => {
+				self.delete('/index/doc/treedel/'+self.editionid+"/"+id).then(res => {
+					self.gettreelist()
+				})
+			}).catch(() => {});
+		},
+		//创建版本
+		editionadds(){
+			self=this
+			self.editionadd['id']=self.editionid
+			if(!self.editionadd.title){
+				self.$message({message: "您必须输入版本号",type: 'error'});
+				return
+			}
+			self.post('/index/doc/editionadd',self.editionadd).then(res => {
+				self.getedition()
+			})
+		},
+		//删除版本
+		editiondels(id){
+			self=this
+			self.$confirm('此操作将永久删除该版本, 是否继续?', '删除提醒', {
+			confirmButtonText: '删除',
+			cancelButtonText: '取消',
+			type: 'warning'
+			}).then(() => {
+				self.delete('/index/doc/editiondel/'+id).then(res => {
+					self.getedition()
+				})
+			}).catch(() => {});
+		},
+		//设为默认版本
+		editiondefs(id){
+			self.post('/index/doc/editiondef/${id}/'+id).then(res => {
+				self.getedition()
+			})
+		},
+		//选择版本
+		editionget(id){
+			self=this
+			self.editionid=id
+			self.treeitem.doclist_id
+			self.gettreelist()
+
+		},
+		editeditormdfun(){
+			self=this
+			setTimeout(function(){
+				self.editeditormd = editormd("editeditormd", {
+					width: "100%",
+					height: self.winheight-210,
+					// theme : "dark",previewTheme : "dark",editorTheme : "pastel-on-dark",
+					markdown:self.treeitem.contents,
+					path : '${static["static"]}/editor.md/1.5.0/lib/',
+					codeFold : true,
+					saveHTMLToTextarea : true,    // 保存 HTML 到 Textarea
+					searchReplace : true,
+					// watch : false,                 // 关闭实时预览
+					emoji : true,
+					htmlDecode : "style,script,iframe|on*",            // 开启 HTML 标签解析，为了安全性，默认不开启
+					taskList : true,
+					tocm            : true,         // Using [TOCM]
+					tex : true,                   // 开启科学公式TeX语言支持，默认关闭
+					flowChart : true,             // 开启流程图支持，默认关闭
+					sequenceDiagram : true,       // 开启时序/序列图支持，默认关闭,
+					toolbarIcons : function() {
+						return ["undo","redo","bold", "del", "italic", "quote","ucwords", "uppercase", "lowercase",
+							"h1", "h2", "h3", "h4", "h5", "h6", "list-ul", "list-ol", "hr","link","reference-link",
+							"code","preformatted-text","code-block","table","datetime","emoji","html-entities","pagebreak"
+							,"goto-line","watch","fullscreen"]
+					},
+					disabledKeyMaps : [
+						"Ctrl-B", "F11", "F10"
+					],onload : function() {
+					var keyMap = {
+						"Ctrl-S": function(cm) {
+							self.treeitem.contents=self.editeditormd.getMarkdown()
+							self.treeupd()
+						},
+					};this.addKeyMap(keyMap);
+					},
+				});
+			},100)
+		}
+    }
+});
+</script>
+</body>

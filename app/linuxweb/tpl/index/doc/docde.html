@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+<html>
+<head>
+	<meta charset="utf-8" />
+		<title>kcw-linux控制板</title>
+		<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
+		<meta name="HandheldFriendly" content="true"/>
+		<meta name="MobileOptimized" content="320"/>
+		<link rel="stylesheet" href="${static['static']}/element-ui/2.4.11/lib/theme-chalk/index.css"/>
+		<link rel="stylesheet" href="${static['static']}/font/font-awesome-4.7.0/css/font-awesome.min.css"/>
+		<link rel="stylesheet" href="/css/default.css"/>
+		<script src="${static['static']}/vue/2.6.10/vue.min.js"></script>
+		<script src="${static['static']}/element-ui/2.4.11/lib/index.js"></script>
+		<script src="${static['static']}/axios/0.18.0/axios.min.js"></script>
+		<script src="${static['static']}/qs/6.5.2/qs.min.js"></script>
+		<script src="${static['static']}/static/js/md5.min.js"></script>
+		<script src="/js/function.js"></script>
+<link rel="stylesheet" href="${static['static']}/editor.md/1.5.0/css/editormd.css"/>
+<link rel="stylesheet" href="${static['static']}/editor.md/1.5.0/css/editormd.preview.css"/>
+<script src="${static['static']}/editor.md/1.5.0/examples/js/jquery.min.js"></script>
+<script src="${static['static']}/editor.md/1.5.0/lib/marked.min.js"></script>
+<script src="${static['static']}/editor.md/1.5.0/lib/prettify.min.js"></script>
+<script src="${static['static']}/editor.md/1.5.0/lib/raphael.min.js"></script>
+<script src="${static['static']}/editor.md/1.5.0/lib/underscore.min.js"></script>
+<script src="${static['static']}/editor.md/1.5.0/lib/sequence-diagram.min.js"></script>
+<script src="${static['static']}/editor.md/1.5.0/lib/flowchart.min.js"></script>
+<script src="${static['static']}/editor.md/1.5.0/lib/jquery.flowchart.min.js"></script>
+<script src="${static['static']}/editor.md/1.5.0/editormd.js"></script>
+<style>
+.kcw-side-scroll::-webkit-scrollbar{width:0px}
+.kcw-side-scroll1::-webkit-scrollbar{width: 10px;  /*滚动条宽度*/height: 10px;  /*滚动条高度*/}
+/*定义滚动条轨道 内阴影+圆角*/  
+.kcw-side-scroll1::-webkit-scrollbar-track  {-webkit-box-shadow: inset 0 0 6px rgba(255, 255, 255, 0.3);border-radius: 10px;  /*滚动条的背景区域的圆角*/background-color: #ffffff;/*滚动条的背景颜色*/  }  
+/*定义滑块 内阴影+圆角*/  
+.kcw-side-scroll1::-webkit-scrollbar-thumb  {border-radius: 4px;  /*滚动条的圆角*/-webkit-box-shadow: inset 0 0 6px rgba(255, 255, 255, 0.3); background-color: rgb(196, 202, 196);  /*滚动条的背景颜色*/}
+a{text-decoration:none;color:#000}
+</style>
+<style>
+</style>
+</head>
+<body>
+<div id="app">
+	<div style="background:#FFF;">
+                <div :style="'background:#FFF;height:'+(winheight)+'px;'">
+					<el-col :style="'width:'+240+'px;height:'+(winheight)+'px;overflow:hidden;border-right:1px solid #CCC;'">
+						<div style="height:40px;border-bottom:1px solid #CCC;">
+							<div style="float:left;width:100%;margin-top:5px">
+                                <el-dropdown style="float:left;overflow:hidden;width:68px;">
+                                    <el-button size="mini">
+                                        <span v-html="editionvalue"></span><i class="el-icon-arrow-down el-icon--right"></i>
+                                    </el-button>
+                                    <el-dropdown-menu slot="dropdown">
+                                        <el-dropdown-item v-for="item,index1 in edition" @click.native="editionvalue=item.title;editionid=item.id;editionget(item.id)" v-html='item.title'></el-dropdown-item>
+                                    </el-dropdown-menu>
+                                </el-dropdown>
+								<el-input @blur="gettreelist()" v-model="title" placeholder="输入关键字搜索wiki" size="mini" style="float:left;width:calc(100% - 70px)"></el-input>
+                            </div>
+						</div>
+						<el-tree :data="tree" :props="defaultProps" node-key="id" :default-expanded-keys=defaultexpandedkeys  @node-click="handleNodeClick" class="kcw-side-scroll" style="height:calc(100% - 40px);width:100%;overflow:hidden;overflow-y:auto;">
+							<p slot-scope="{node,data}" style="width:100%">
+								<img v-if="data.types==0" src="/images/icon/file.gif" style="float:left;height:22px;">
+								<img v-else src="/images/icon/doc.gif" style="float:left;height:22px;">
+								<el-tooltip v-if="data.describes" class="item" effect="dark" :content="data.describes" placement="right">
+									<span v-html="data.title" @click="gettreetext(data.id,data.types)" style="float:left;width:140px;overflow:hidden;"></span>
+								</el-tooltip>
+								<span v-else v-html="data.title" @click="gettreetext(data.id,data.types)" style="width:140px;overflow:hidden;"></span>
+							</p>
+						</el-tree>
+					</el-col>
+					<el-col :style="'padding-left:30px;width:calc(100% - 270px);height:'+(winheight)+'px;overflow:hidden;'">
+						<div v-if="treeitem.id" style="min-width:800px;width:100%;height:100%;overflow:hidden;">
+							<div style="border-bottom :1px solid #CCC;height:60px">
+									<h3 v-html="treeitem.title">wiki文档</h3>
+									<span style="float:left;padding-top:6px;">更新与<span v-html="time_date(treeitem.updtime)"></span></span>
+                                    <span style="float:right;"><a href="/index/index/index/request">request</a></span>
+							</div>
+							<div class="kcw-side-scroll1" :style="'margin:10px auto;width:98%;height:'+(winheight-82)+'px;overflow:hidden;overflow-y:auto;'">
+								<div id="contenttext" style="width:98%"></div>
+							</div>
+						</div>
+						<div v-else>
+							<h1 style="margin-top:160px;text-align:center">请点右边节点来查看内容</h1>
+						</div>
+					</el-col>
+                </div>
+
+
+
+	</div>
+
+</div>
+<script>
+new Vue({
+	el: '#app',
+	data() {
+      return {
+		winheight:document.documentElement.clientHeight,
+		winwidth:document.documentElement.clientWidth,
+		tree:{},
+		treeitem:{doclist_id:'',pid:0,types:0,icon:'',opens:1,contents:'',title:'名称',describes:'描述'},contenttext:'',
+		activeName: 'wiki',
+		title:'',
+		defaultProps: {
+          children: 'level',
+          label: 'title'
+		},
+		defaultexpandedkeys:[], //默认展开id是7和8的节点
+		wiki:{
+			type:'sel'
+		},
+		edition: [],
+		editionvalue: '',editionid:'',
+		editionstatus:false,
+		editionadd:{title:'',describes:''}
+      };
+    },
+	mounted(){
+		self=this
+		window.onresize = function(){
+			self.winheight=document.documentElement.clientHeight
+			self.winwidth=document.documentElement.clientWidth
+		}
+		self.getedition()
+	},
+	methods: {
+        handleClick(tab, event) {
+			// console.log(tab, event);
+		},
+		handleNodeClick(data){
+			self=this
+			// if (data.types==1){
+			// 	self.gettreetext(data.id)
+			// }
+		},
+		//获取版本
+		getedition(){
+			self=this
+			self.get('/index/doc/edition/${id}').then(res => {
+				self.edition=res.data
+				self.editionvalue=res.data[res.data.length-1].title+"("+res.data[res.data.length-1].describes+")"
+				for (var i=0;i<res.data.length;i++){
+					if (res.data[i].defaults){
+						self.editionid=res.data[i].id
+						self.editionvalue=res.data[i].title
+						self.treeitem.doclist_id=self.editionid
+						self.edition[i].title=self.edition[i].title
+						self.gettreelist()
+						break
+					}
+				}
+				
+			})
+		},
+		//获取节点列表
+		gettreelist(){
+			self=this
+			self.get('/index/doc/tree/'+self.editionid+"/"+self.title,null,'加载中...').then(res => {
+				self.tree=res.data
+			})
+		},
+		//获取节点文本
+		gettreetext(id,types=1){
+			if (types){
+				self=this
+				self.get('/index/doc/treetext/'+self.editionid+"/"+id,null,'加载中...').then(res => {
+					self.treeitem=res.data
+					$("#contenttext").html("")
+					setTimeout(function(){
+						editormd.markdownToHTML("contenttext", {
+							markdown        : res.data.contents,
+							htmlDecode: true,
+							emoji           : true,
+							taskList        : true,
+							tex             : true,  // 默认不解析
+							flowChart       : true,  // 默认不解析
+							sequenceDiagram : true,  // 默认不解析
+						});
+					},50)
+				})
+			}
+		},
+		//选择版本
+		editionget(id){
+			self=this
+			self.editionid=id
+			self.treeitem.doclist_id
+			self.gettreelist()
+
+		}
+    }
+});
+</script>
+</body>
