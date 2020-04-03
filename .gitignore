@@ -9,9 +9,7 @@ __pycache__
 runtime/
 /.idea
 /.vscode
-# app/file/sqlite
-kcweb/
-www/
+app/file/sqlite/default
 Cache/
 dump.rdb
 pull.bat

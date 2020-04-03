@@ -1,4 +1,4 @@
-#!/usr/bin/env python3.8intapp
+#!/usr/bin/env python3.6intapp
 # 备份mysql日志到阿里云oss阿里云 pip3.8 install oss2 -i https://mirrors.aliyun.com/pypi/simple/
 
 #命令参考
@@ -31,12 +31,15 @@ try:
     upload_aliyun=sys.argv[3]
 except:
     upload_aliyun=False
+if backmysqlpath[len(backmysqlpath)-1]=='/':
+    backmysqlpath=backmysqlpath[:-1]
 # print(ttt,backmysqlpath,upload_aliyun)
 # exit()  
+
 mysqldatapath="/usr/local/mysql/mysql5.7/data" #mysql数据库存放目录
 mysqlpwd='intapppasswordtest'
 mysqlconf=json_decode(file_get_content(config.path['linux_install_path']+"/mysql/mysql5.7/config.conf")) #mysql信息
-aliyunconf=json_decode(file_get_content(config.path['linux_install_path']+"/python/python3.8/lib/python3.8/site-packages/oss2/config")) #阿里云信息
+aliyunconf=json_decode(file_get_content(config.path['linux_install_path']+"/python/python3.6/lib/python3.6/site-packages/oss2/config")) #阿里云信息
 if mysqlconf:
     mysqldatapath=mysqlconf['base']['path']
     mysqlpwd=mysqlconf['base']['rootpassword']

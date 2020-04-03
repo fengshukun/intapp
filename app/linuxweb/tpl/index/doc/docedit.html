@@ -337,7 +337,7 @@ new Vue({
 				self.$message({message: "您必须输入版本号",type: 'error'});
 				return
 			}
-			self.post('/index/doc/editionadd',self.editionadd).then(res => {
+			self.post('/index/doc/editionadd',self.editionadd,"请稍后").then(res => {
 				self.getedition()
 			})
 		},

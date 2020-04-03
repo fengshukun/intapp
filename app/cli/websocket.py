@@ -1,5 +1,5 @@
-#!/usr/bin/env python3.8intapp
-import sys
+#!/usr/bin/env python3.6intapp
+import sys,asyncio,websockets
 sys.path.append("../../")
 from app.linuxweb.common import *
 class kwebsocket():

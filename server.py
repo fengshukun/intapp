@@ -6,14 +6,10 @@ import app as application
 #生产环境运行入口
 app=web(__name__,application)
 
-
 #这里是初始化数据 请务修改
 e37f0136aa3ffaf149b351f6a4c948e9=threading.Thread(target=messagequeue)
 e37f0136aa3ffaf149b351f6a4c948e9.daemon=True
 e37f0136aa3ffaf149b351f6a4c948e9.start()
-# # # #启动websocket客户端
-
-
 if get_sysinfo()['uname'][0]=='Linux':
     config.ssh['url']='http://'+get_local_ip()+':39101'
     config.app['appmode']='produc'

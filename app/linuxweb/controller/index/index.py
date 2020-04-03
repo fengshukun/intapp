@@ -11,8 +11,8 @@ def index(html='index'):
     if html!='request':
         G.userinfo=get_session("userinfo")
         if not G.userinfo:
-            username=request.args.get('username')
-            password=request.args.get('password')
+            username=request.args.get('username') if request.args.get('username') else ''
+            password=request.args.get('password') if request.args.get('password') else ''
             return tpl('/index/index/login.html',username=username,password=password)
     try:
         return tpl('/index/index/'+html+'.html')

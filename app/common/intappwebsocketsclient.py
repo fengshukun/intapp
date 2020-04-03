@@ -1,4 +1,4 @@
-from .plantask import *
+from .model import *
 from . import websocket_client 
 global globalqueuesssss
 globalqueuesssss = Queue()

@@ -40,6 +40,7 @@
 						<el-option label="shell脚本" value="shell"></el-option>
 						<el-option label="访问URL" value="openurl"></el-option>
 						<el-option v-if="mysql57.status >= 4" label="备份mysql5.7数据" value="backupmysql"></el-option>
+						<el-option label="重启php-fpm" value="restart-php-fpm"></el-option>
 						</el-select>
 					</el-form-item>
 					<el-form-item v-if="form.types=='shell'" label="脚本内容">
@@ -47,6 +48,17 @@
 					</el-form-item>
 					<el-form-item v-else-if="form.types=='openurl'" label="URL地址">
 						<el-input v-model="form.value"></el-input>
+					</el-form-item>
+					<el-form-item v-else-if="form.types=='restart-php-fpm'" label="php版本">
+						<!-- <el-input v-model="form.value"></el-input> -->
+						<el-select v-model="form.value" placeholder="请选择">
+							<el-option key="php7.4" label="php7.4" value="php7.4"></el-option>
+							<el-option key="php7.3" label="php7.3" value="php7.3"></el-option>
+							<el-option key="php7.2" label="php7.2" value="php7.2"></el-option>
+							<el-option key="php7.1" label="php7.1" value="php7.1"></el-option>
+							<el-option key="php7.0" label="php7.0" value="php7.0"></el-option>
+							<el-option key="php5.6" label="php5.6" value="php5.6"></el-option>
+						</el-select>
 					</el-form-item>
 					<div v-else-if="form.types=='backupmysql'" >
 						<el-form-item label="备份目录">
@@ -192,6 +204,7 @@
 
 						<span v-if="scope.row.types=='shell'">执行命令：<span style="color:#409EFF">{{scope.row.value}}</span><span></span></span>
 						<span v-else-if="scope.row.types=='openurl'">访问URL：<span style="color:#409EFF">{{scope.row.value}}</span></span>
+						<span v-else-if="scope.row.types=='restart-php-fpm'">重启php-fpm,版本：<span style="color:#409EFF">{{scope.row.value}}</span></span>
 						<span v-else-if="scope.row.types=='backupmysql'">备份mysql数据库到：<span style="color:#409EFF">{{scope.row.value}}</span><span v-if="scope.row.oss" >，同时上传到阿里云对象存储oss</span></span>
                     </template>
 				</el-table-column>

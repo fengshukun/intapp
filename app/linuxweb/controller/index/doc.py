@@ -2,7 +2,6 @@ from app.linuxweb.common import *
 import urllib,traceback
 class modeldoctext(model.model):
     "文档内容"
-    # config={'type':'sqlite'}
     config={'type':'sqlite','db':config.doc['db']}
     model.dbtype.conf=config
     table="doctext"
@@ -19,6 +18,46 @@ class modeldoctext(model.model):
         "addtime":model.dbtype.int(LEN=11,DEFAULT=0),           #添加时间
         "updtime":model.dbtype.int(LEN=11,DEFAULT=0)            #更新时间
     }
+class doclist(model.model):
+    config={'type':'sqlite','db':config.doc['db']}
+    model.dbtype.conf=config
+    table="doclist"
+    "文档项目"
+    fields={
+        "id":model.dbtype.int(LEN=11,PRI=True,A_L=True),        #设置id为自增主键
+        'pid':model.dbtype.int(LEN=11,DEFAULT=0),               #0项目  1版本
+        "icon":model.dbtype.varchar(LEN=128,DEFAULT=''),        #图标
+        "title":model.dbtype.varchar(LEN=128,DEFAULT=''),       #项目名称
+        "describes":model.dbtype.varchar(LEN=256,DEFAULT=''),   #项目描述
+        "defaults":model.dbtype.int(LEN=1,DEFAULT=0),           #是否默认版本
+        "addtime":model.dbtype.int(LEN=11,DEFAULT=0),           #添加时间
+        "updtime":model.dbtype.int(LEN=11,DEFAULT=0)            #更新时间
+    }
+class model_requests(model.model):
+    "request收藏夹"
+    config={'type':'sqlite','db':config.doc['db']}
+    model.dbtype.conf=config
+    table="request" 
+    fields={
+        "id":model.dbtype.int(LEN=11,PRI=True,A_L=True),        #设置id为自增主键
+        'adminid':model.dbtype.int(LEN=11,DEFAULT=0),           #管理员id
+        'types':model.dbtype.int(LEN=1,DEFAULT=0),              #0目录  1文件
+        "pid":model.dbtype.int(LEN=11,DEFAULT=0),               #父级id
+        "icon":model.dbtype.varchar(LEN=128,DEFAULT=''),        #图标
+        "title":model.dbtype.varchar(LEN=128,DEFAULT=''),       #名称
+        "describes":model.dbtype.varchar(LEN=256,DEFAULT=''),   #描述
+        "opens":model.dbtype.int(LEN=1,DEFAULT=1),              #是否展开节点
+        "contents":model.dbtype.text(NULL=True),                #内容
+        "intos":model.dbtype.text(NULL=True),                #内容
+        "addtime":model.dbtype.int(LEN=11,DEFAULT=0),           #添加时间
+        "updtime":model.dbtype.int(LEN=11,DEFAULT=0)            #更新时间
+    }
+if not os.path.isfile(config.doc['db']):
+    t=doclist()
+    t.create_table()
+    t1=model_requests()
+    t1.create_table()
+    print("创建文档项目成功")
 def before_request():
     pass
 
@@ -80,9 +119,10 @@ def editionadd():
         doctext=modeldoctext()
         doctext.table="doctext"+str(doclist_id)
         doctext.create_table()
-        ar=sqlite('doctext'+str(id),config.doc).where(doclist_id,id).select()
+        ar=sqlite('doctext'+str(id),config.doc).where('doclist_id',id).select()
         for k in ar:
             sqlite('doctext'+str(doclist_id),config.doc).insert({
+                'id':k['id'],
                 'doclist_id':doclist_id,
                 'types':k['types'],
                 'pid':k['pid'],
@@ -116,10 +156,10 @@ def tree(id,kw=''):
     where=[('doclist_id','eq',id)]
     if kw:
         where.append('and')
-        where.append(('title','like',kw+"%"))
-        # where.append('and') 
-        # where.append(('types','eq',1))
-    data=list_to_tree(sqlite('doctext'+str(id),config.doc).where(where).field('id,pid,icon,title,describes,opens,types').select(),'id','pid','level')
+        where.append(('title','like',"%"+kw+"%"))
+    data=sqlite('doctext'+str(id),config.doc).where(where).field('id,pid,icon,title,describes,opens,types').select()
+    if not kw:
+        data=list_to_tree(data,'id','pid','level')
     return returnjson(data)
 def treetext(doclist_id,id):
     "获取节点文本 版本doclist_id 节点id"

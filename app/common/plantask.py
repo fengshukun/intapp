@@ -1,12 +1,11 @@
 # -*- coding: utf-8 -*-
-import asyncio,websockets
-from kcweb.common import *
+from .soft import *
 from app import config
 from queue import Queue
-import math,threading,shutil,traceback,subprocess,socket,requests,zipfile,random,re,pexpect,multiprocessing
 from apscheduler.schedulers.blocking import BlockingScheduler
 if not os.path.exists(config.cache['folder']+"/plan/"):
     os.makedirs(config.cache['folder']+"/plan/")
+    
 class plan():
     def log(self,iden):
         "获取任务日志"
@@ -27,9 +26,15 @@ class plan():
         # ars=pi.stdout.read().decode()
     def openurls(self,url,iden):
         http=Http()
-        http.httpurl(url)
+        http.openurl(url)
         f=open(config.cache['folder']+"/plan/"+str(iden),"w+",encoding='utf-8')
         f.write("---------"+time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())+"--OPEN URL SUCCESS---------\n"+http.get_text+"\n---------OPEN URL END---------\n\n\n")
+        f.close()
+    def restartphp(self,ar,iden=''):
+        """重启php-fpm"""
+        SOFT.reboot(ar)
+        f=open(config.cache['folder']+"/plan/"+str(iden),"w+",encoding='utf-8')
+        f.write("---------"+time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())+"，"+ar['title']+"重启成功---------OPEN URL END---------\n\n\n")
         f.close()
     def backupmysql(self,paths,iden,types='backup',upload_aliyun=1):
         "备份或恢复mysql数据"
@@ -81,6 +86,10 @@ class plan():
         elif data['types']=='openurl':
             func=self.openurls
             args=(data['value'],data['iden'])
+        elif data['types']=='restart-php-fpm': #重启php
+            func=self.restartphp
+            ar=sqlite('software',config.software).where('title',data['value']).find()
+            args=(ar,data['iden'])
         elif data['types']=='backupmysql': #备份mysql到阿里云
             func=self.backupmysql
             args=(data['value'],data['iden'])

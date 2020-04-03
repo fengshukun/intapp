@@ -55,9 +55,9 @@ def request_curls():
             for params in data['body']['form_param']:
                 URL+=params['key']+"="+params['value']+"&"
             URL=URL[:-1]
-        http.httpurl(URL)
+        http.openurl(URL)
     else:
-        http.httpurl(data['URL'],data['Method'],param)
+        http.openurl(data['URL'],data['Method'],param)
     data={
         'header':http.get_header,
         'status':http.get_status_code,

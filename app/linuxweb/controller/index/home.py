@@ -155,12 +155,12 @@ def menu():
         ]
     }
     if sqlite('software',config.software).where([('title','like',"%kodexplorer%"),'and',('status','gt',3),'and',('platform','eq',get_sysinfo()['uname'][0])]).count():
-        a=sqlite('app_web').where('title','eq',"kodexplorer").find()
+        a=sqlite('app_web',config.sqliteweb).where('title','eq',"kodexplorer").find()
         if a:
             ttt1=a['domain'].split("\n")
             data['header'].insert(0,{'title':'资源管理器','icon':config.static['img']+'/icon/kodexplorer.png','url':'http://'+ttt1[0]+":"+a['port'],'level':''})
     if sqlite('software',config.software).where([('title','like',"%phpmyadmin%"),'and',('status','gt',3),'and',('platform','eq',get_sysinfo()['uname'][0])]).count():
-        a=sqlite('app_web').where('title','eq',"phpmyadmin").find()
+        a=sqlite('app_web',config.sqliteweb).where('title','eq',"phpmyadmin").find()
         if a:
             ttt1=a['domain'].split("\n")
             data['header'].insert(0,{'title':'mysql数据库管理','icon':config.static['img']+'/icon/phpmyadmin.png','url':'http://'+ttt1[0]+":"+a['port'],'level':''})

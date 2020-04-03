@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 from kcweb.config import *
 import os
+APP_PATH=os.path.realpath(__file__) #app目录
+APP_PATH=APP_PATH[:-16] #app目录
 #路由配置
 route['default']=True   #是否开启默认路由  默认路由开启后面不影响以下配置的路由，模块名/版本名/控制器文件名/方法名 作为路由地址   如：http://www.kcw.com/api/v1/index/index/
 route['modular']='linuxweb' #[{"intapp":"linuxweb"},{"app":"linuxweb"},{"www":"linuxweb"},{"127":"linuxweb"},{"212":"linuxweb",'47':'linuxweb','120':'linuxweb'}] #配置域名模块 配置后地址为：http://www.kcw.com/v1/index/index/  注意:如果使用的是代理服务器需要把代理名称设置为当前配置的域名，否则不生效
@@ -8,10 +10,12 @@ route['files']='index'  #默认路由文件
 route['funct']='index'  #默认路由函数
 route['methods']=['POST','GET','PUT','DELETE']   #默认支持的请求方式
 
-
-sqlite['db']='app/file/sqlite/kcwlicuxweb' #sqlite数据库
-software={'db':'app/file/sqlite/software'}
-doc={'db':'app/file/sqlite/doc'}
+sqlite['db']=APP_PATH+'/file/sqlite/default/kcwlicuxweb' #sqlite数据库
+sqliteweb={'db':APP_PATH+'/file/sqlite/default/web'}
+doc={'db':APP_PATH+'/file/sqlite/default/doc'}
+software={'db':APP_PATH+'/file/sqlite/software'}
+if not os.path.exists(APP_PATH+'/file/sqlite/default'):
+    os.makedirs(APP_PATH+'/file/sqlite/default')
 
 # 静态资源域名配置
 static={

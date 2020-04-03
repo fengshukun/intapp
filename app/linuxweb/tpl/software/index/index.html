@@ -92,6 +92,7 @@
                             </span>
                             <el-button v-if="scope.row.title.indexOf('git')!=-1" type="primary" @click="setups(scope.row,scope.$index)" size="mini" plain style="height:20px;padding-top:4px">ssh密钥</el-button>
                             <el-button v-else-if="scope.row.title.indexOf('mongodb')!=-1" type="primary" @click="setups(scope.row,scope.$index)" size="mini" plain style="height:20px;padding-top:4px">服务管理</el-button>
+                            <el-button v-else-if="scope.row.title.indexOf('kodexplorer')!=-1 || scope.row.title.indexOf('phpmyadmin')!=-1" type="primary" @click="setups(scope.row,scope.$index)" size="mini" plain style="height:20px;padding-top:4px">初始化</el-button>
                             <el-button v-else type="primary" @click="setups(scope.row,scope.$index)" size="mini" plain style="height:20px;padding-top:4px">设置</el-button>
                             <el-button type="danger" @click="uninstall(scope.row,scope.$index)" size="mini" plain style="height:20px;padding-top:4px">卸载</el-button>
                         </span>
@@ -102,7 +103,7 @@
                                 <el-button type="warning" @click="install(scope.row,scope.$index)" size="mini" plain style="height:20px;padding-top:4px">停止</el-button>
                                 <el-button @click="reboot(scope.row,scope.$index)" size="mini" plain style="height:20px;padding-top:4px">重启</el-button>
                             </span>
-                            <el-button type="primary" @click="setups(scope.row,scope.$index)" size="mini" plain style="height:20px;padding-top:4px">设置</el-button>
+                            <el-button @click="setups(scope.row,scope.$index)" size="mini" plain style="height:20px;padding-top:4px">设置</el-button>
                         </span>
                         <span v-else-if="scope.row.status==5" type="text" size="mini"><i class="el-icon-loading"></i>卸载中...</span>
                         <span v-else-if="scope.row.status==9" type="text" size="mini"><i class="el-icon-loading"></i>启动中...</span>
@@ -161,6 +162,9 @@
         </el-form-item>
         <el-form-item label="状态">
             <el-input placeholder="状态" v-model="form.status"></el-input>
+        </el-form-item>
+        <el-form-item label="状态描述">
+            <el-input placeholder="状态描述" v-model="form.msg"></el-input>
         </el-form-item>
         <el-form-item label="wget文件">
             <el-input placeholder="wget地址后半部分，如：php/php.sh && sh php.sh php7.0" v-model="form.filename"></el-input>
@@ -221,34 +225,57 @@ new Vue({
             "设置软件页面"
             self=this
             self.dialogtitle=item.title
-            self.dialogstatus=true
             url="/software/index/index/"+item.title
             if(item.title.indexOf("nginx") != -1){
                 url="/software/index/index/nginx"
+                self.getcontent1(url+"/"+item.id)
             }else if(item.title.indexOf("kodexplorer") != -1){
                 url="/software/index/index/kodexplorer"
+                self.post("/app/web/get",{where:'describes="kodexplorer"'},'请稍后...').then(res => {
+                    if (res.data.list.length){
+                        self.$notify({title: 'kodexplorer正在运行中',message: '',type: 'success'});
+                    }else{
+                        self.getcontent1(url+"/"+item.id)
+                    }
+                })
             }else if(item.title.indexOf("phpmyadmin") != -1){
                 url="/software/index/index/phpmyadmin"
+                self.post("/app/web/get",{where:'describes="phpmyadmin"'},'请稍后...').then(res => {
+                    if (res.data.list.length){
+                        self.$notify({title: 'phpmyadmin正在运行中',message: '',type: 'success'});
+                    }else{
+                        self.getcontent1(url+"/"+item.id)
+                    }
+                })
             }else if(item.title.indexOf("phpims") != -1){
                 url="/software/index/index/phpims"
+                self.getcontent1(url+"/"+item.id)
             }else if(item.title.indexOf("php") != -1){
                 url="/software/index/index/php"
+                self.getcontent1(url+"/"+item.id)
             }else if(item.title.indexOf("redis") != -1){
                 url="/software/index/index/redis"
+                self.getcontent1(url+"/"+item.id)
             }else if(item.title.indexOf("git") != -1){
                 url="/software/index/index/git"
+                self.getcontent1(url+"/"+item.id)
             }else if(item.title.indexOf("mongodb") != -1){
                 url="/software/index/index/mongodb"
+                self.getcontent1(url+"/"+item.id)
             }else if(item.title.indexOf("mysql") != -1){
                 url="/software/index/index/mysql"
+                self.getcontent1(url+"/"+item.id)
             }else if(item.title.indexOf("frp") != -1){
                 url="/software/index/index/frp"
+                self.getcontent1(url+"/"+item.id)
             }else{
-                url="/software/index/index/"+item.title
+                self.getcontent1("/software/index/index/"+item.title+"/"+item.id)
             }
-            url=url+"/"+item.id
+            
+        },
+        getcontent1(url){
             self.getcontent(url).then(html => {
-                // setTimeout(function(){self.title='';self.icon=icon},100)
+                self.dialogstatus=true
                 self.iframedoc=html
             }).catch(err => {
                 if (err.response) {

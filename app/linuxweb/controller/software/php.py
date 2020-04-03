@@ -156,8 +156,9 @@ def base(id,is_upd=0):
 def extenlist(id,is_upd=0):
     "php扩展信息列表"
     ar=sqlite('software',config.software).where('id',id).find()
+    lists=sqlite('php_exten',config.software).where('pid',id).select()
     data={
-        'extenlist':sqlite('php_exten',config.software).where('pid',id).select(),
+        'extenlist':lists,
         'php':ar
     }
     return returnjson(data)
@@ -190,6 +191,7 @@ def del_php_exten(id):
     return returnjson()
 
 def installext(id):
+    is_del=False #是否删除成功
     "安装php扩展和下载扩展"
     ar=sqlite('php_exten',config.software).where('id',id).find()
     if ar['status']==0:
@@ -200,23 +202,45 @@ def installext(id):
         paths=request.get_json()['paths']
         if get_sysinfo()['uname'][0]=='Linux':
             if os.path.exists(paths):
+                
                 confile=paths+"bin/php.ini"
                 f= open(confile, "r")
-                con=f.read()
+                con=''
+                while True:
+                    line = f.readline()
+                    if not line:
+                        break
+                    elif str(ar['title']) in line:
+                        line=""
+                        is_del=True
+                    con=con+line
                 f.close()
-                con=con.replace("extension="+str(ar['title'])+".so\n","")
                 f= open(confile, "w")
                 f.write(con)
                 f.close()
-                sqlite('php_exten',config.software).where('id',ar['id']).update({'status':0,'msg':''})
-                if 'php7.0' in paths:
-                    os.system("pkill php70-fpm && php70-fpm -c "+paths+"php7.0/etc/php.ini")
-                elif 'php7.1' in paths:
-                    os.system("pkill php70-fpm && php71-fpm -c "+paths+"php7.1/etc/php.ini")
-                elif 'php7.2' in paths:
-                    os.system("pkill php70-fpm && php72-fpm -c "+paths+"php7.2/etc/php.ini")
-                elif 'php7.3' in paths:
-                    os.system("pkill php70-fpm && php73-fpm -c "+paths+"php7.3/etc/php.ini")
+
+                # confile=paths+"bin/php.ini"
+                # f= open(confile, "r")
+                # con=f.read()
+                # f.close()
+                # con=con.replace("extension="+str(ar['title'])+".so\n","")
+                # f= open(confile, "w")
+                # f.write(con)
+                # f.close()
+                if is_del:
+                    sqlite('php_exten',config.software).where('id',ar['id']).update({'status':0,'msg':''})
+                    if 'php7.0' in paths:
+                        os.system("pkill php70-fpm && php70-fpm -c "+paths+"php7.0/etc/php.ini")
+                    elif 'php7.1' in paths:
+                        os.system("pkill php71-fpm && php71-fpm -c "+paths+"php7.1/etc/php.ini")
+                    elif 'php7.2' in paths:
+                        os.system("pkill php72-fpm && php72-fpm -c "+paths+"php7.2/etc/php.ini")
+                    elif 'php7.3' in paths:
+                        os.system("pkill php73-fpm && php73-fpm -c "+paths+"php7.3/etc/php.ini")
+                    elif 'php7.4' in paths:
+                        os.system("pkill php74-fpm && php74-fpm -c "+paths+"php7.4/etc/php.ini")
+                else:
+                    return returnjson(code=1,msg='卸载失败')
             else:
                 return returnjson(code=1,msg='php文件夹错误')
     return returnjson()

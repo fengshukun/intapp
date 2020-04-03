@@ -1,5 +1,34 @@
 # -*- coding: utf-8 -*-
 from app.linuxweb.common import *
+class app_web(model.model):
+    "网站列表"
+    # config={'type':'sqlite'}
+    config={'type':'sqlite','db':config.sqliteweb['db']}
+    model.dbtype.conf=config
+    table="app_web"
+    fields={
+        "id":model.dbtype.int(LEN=11,PRI=True,A_L=True),        #设置id为自增主键
+        "domain":model.dbtype.varchar(LEN=512,DEFAULT=''),      #域名
+        "port":model.dbtype.varchar(LEN=8,DEFAULT='80'),        #端口
+        "icon":model.dbtype.varchar(LEN=128,DEFAULT=''),        #图标
+        "title":model.dbtype.varchar(LEN=128,DEFAULT=''),       #名称
+        "describes":model.dbtype.varchar(LEN=256,DEFAULT=''),   #描述
+        "status":model.dbtype.int(LEN=1,DEFAULT=1),             #网站状态 0停止  1开启
+        "path":model.dbtype.varchar(LEN=256,DEFAULT=''),        #网站目录
+        "client_max_body_size":model.dbtype.int(LEN=11,DEFAULT=20),#上传限制
+        "phpeditionath":model.dbtype.varchar(LEN=256,DEFAULT=''),#php版本
+        "servers":model.dbtype.varchar(LEN=256,DEFAULT=''),     #服务器名字  nginx名字
+        "only":model.dbtype.varchar(LEN=32,DEFAULT=''),         #唯一字段
+        "balancing":model.dbtype.varchar(LEN=2048,DEFAULT=''),  #负载均衡服务器信息
+        "proxy_set_header":model.dbtype.varchar(LEN=1024,DEFAULT=''),#自定义转发请求头
+        "addtime":model.dbtype.int(LEN=11,DEFAULT=0),           #添加时间
+        "updtime":model.dbtype.int(LEN=11,DEFAULT=0)            #更新时间
+        
+    }
+if not os.path.isfile(config.sqliteweb['db']):
+    t=app_web()
+    t.create_table()
+    print("创建网站列表成功")
 def get():
     "通用查询select"
     data=request.get_json()
@@ -21,16 +50,16 @@ def get():
         pagesize=10
     else:
         pagesize=int(pagesize)
-    lists=sqlite("app_web").field(field).where(where).page(pagenow,pagesize).select()
+    lists=sqlite("app_web",config.sqliteweb).field(field).where(where).page(pagenow,pagesize).select()
     i=0
     for k in lists:
         lists[i]['domain']=k['domain'].split("\n")
         i+=1
-    count=sqlite("app_web").where(where).count()
+    count=sqlite("app_web",config.sqliteweb).where(where).count()
     data=get_json_list(lists,count,pagenow,pagesize)
     data['kodexplorer']=''
     if sqlite('software',config.software).where([('title','like',"%kodexplorer%"),'and',('status','gt',3),'and',('platform','eq',get_sysinfo()['uname'][0])]).count():
-        a=sqlite('app_web').where('title','eq',"kodexplorer").find()
+        a=sqlite('app_web',config.sqliteweb).where('title','eq',"kodexplorer").find()
         if a:
             ttt1=a['domain'].split("\n")
             data['kodexplorer']='http://'+ttt1[0]+":"+a['port']
@@ -51,7 +80,7 @@ def add_web():
     # print(where)
     # exit()
     data['only']=md5(str(addtime)+str(random.randint(100000,999999)))
-    ttt=sqlite('app_web').where(where).find()
+    ttt=sqlite('app_web',config.sqliteweb).where(where).find()
     # print(ttt)
     # exit()
     if ttt:
@@ -140,7 +169,7 @@ def add_web():
             data.update(updtime=addtime,addtime=addtime)
             data['servers']=paths+filenames
         except:pass
-        sqlite('app_web').insert(data)
+        sqlite('app_web',config.sqliteweb).insert(data)
     except:
         return returnjson(code=1,msg="失败")
     else:
@@ -148,7 +177,7 @@ def add_web():
 def del_web(id,path=0):
     #path=1 表示删除网站目录  ,linux和windows已完成
     "删除网站"
-    nginx=sqlite('app_web').where('id',id).find()
+    nginx=sqlite('app_web',config.sqliteweb).where('id',id).find()
     filenames=nginx['servers']
     if get_sysinfo()['uname'][0]=='Linux':
         if os.path.isfile(filenames+"/conf/vhost/"+nginx['only']+'.conf'):
@@ -179,14 +208,14 @@ def del_web(id,path=0):
         return returnjson(code=1,msg="无法匹配系统")
     if path=='1' and os.path.exists(nginx['path']):
         shutil.rmtree(nginx['path'])
-    sqlite('app_web').where('id',id).delete()
+    sqlite('app_web',config.sqliteweb).where('id',id).delete()
     
     return returnjson()
 def updconf():
     "更新网站配置信息"
     data=request.get_json()
-    app_web=sqlite('app_web')
-    nginx=app_web.where("id",data['id']).find()
+    # app_web=sqlite('app_web',config.sqliteweb)
+    nginx=sqlite('app_web',config.sqliteweb).where("id",data['id']).find()
     filenames=nginx['servers']
     servertpl=filenames+'/conf/vhost/webtpl/default'
     if data['filepath']=='base': #更新基本信息、域名信息，负载均衡信息 
@@ -218,7 +247,7 @@ def updconf():
         for kk in ttt1:
             where=where+"domain like '%"+kk+"%'"+" or "
         where=where[:-4]+")"
-        ttt2=app_web.where(where).find()
+        ttt2=sqlite('app_web',config.sqliteweb).where(where).find()
         if ttt2:
             ttt2=ttt2['domain'].split("\n")
             for k in ttt2:
@@ -243,7 +272,7 @@ def updconf():
         f=open(filenames+"/conf/vhost/"+nginx['only']+'.conf','w',encoding="utf-8")
         f.write(text)
         f.close()
-        sqlite("app_web").where("id",data['id']).update(upddata)
+        sqlite("app_web",config.sqliteweb).where("id",data['id']).update(upddata)
         pi=subprocess.Popen('nginx -s reload',shell=True, stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
         ars=pi.stdout.read().decode()
         ars=ars.split("\n")
@@ -265,7 +294,7 @@ def updconf():
             return returnjson(code=1,msg=strs)
     return returnjson()
 def ssl(id):
-    nginx=sqlite('app_web').where("id",id).find()
+    nginx=sqlite('app_web',config.sqliteweb).where("id",id).find()
     data=request.get_json()
     filenames=nginx['servers']
     key=filenames+'/conf/vhost/rewrite/'+nginx['only']+".key"
@@ -399,7 +428,7 @@ def __createssl(data):
 
 def webinfo(id):
     "获取网站配置信息"
-    nginx=sqlite('app_web').where('id',id).find()
+    nginx=sqlite('app_web',config.sqliteweb).where('id',id).find()
     filenames=nginx['servers']
     pseudo_static_tpl=get_file(filenames+'/conf/vhost/webtpl/rewrite') #伪静态模板
     tpl=[]
@@ -410,7 +439,7 @@ def webinfo(id):
     data={
         "baseinfo":nginx,
         "balancing":json_decode(nginx['balancing']),
-        "phpeditionath":sqlite("software",config.software).field("id,title").where("title like 'php%' and status >=4 and platform = '"+get_sysinfo()['uname'][0]+"' and title != 'phpmyadmin4.9'").select(),
+        "phpeditionath":sqlite("software",config.software).field("id,title").where("title like 'php%' and status >=4 and platform = '"+get_sysinfo()['uname'][0]+"' and title != 'phpmyadmin'").select(),
         "pseudo_static":{
             "text":file_get_content(filenames+'/conf/vhost/rewrite/'+nginx['only']), #伪静态信息
             'tpl':tpl #伪静态模板

@@ -50,39 +50,65 @@ def get(id=''):
         pagesize=int(pagesize)
     lists=sqlite("software",config.software).where(where).order("title desc").page(pagenow,pagesize).select()
     i=0
-    for k in lists:
-        if (k['status'] == 10) and k['platform']=='Linux':
-            if 'nginx' in k['title'] :
-                if not get_process_id('nginx'):
+    if 'Linux' in get_sysinfo()['platform']:
+        for k in lists:
+            if k['status'] == 0 and k['platform']=='Linux': #检查软件是否已经安装
+                if (os.path.exists(str(k['paths'])+str(k['title']))) :
                     lists[i]['status']=4
-                    sqlite("software",config.software).where('id',k['id']).update({'status':4})
-                    print('nginx',get_process_id('nginx'))
-            elif 'redis' in k['title']:
-                if not get_process_id('redis'):
-                    lists[i]['status']=4
-                    sqlite("software",config.software).where('id',k['id']).update({'status':4})
-                    print('redis',get_process_id('redis'))
-            elif 'mysql' in k['title']:
-                if not get_process_id('mysql'):
-                    lists[i]['status']=4
-                    sqlite("software",config.software).where('id',k['id']).update({'status':4})
-                    print('mysql',get_process_id('mysql'))
-            elif 'php5' in k['title'] or 'php7' in k['title']:
-                if not get_process_id(k['title']):
-                    lists[i]['status']=4
-                    sqlite("software",config.software).where('id',k['id']).update({'status':4})
-                    print(k['title'],get_process_id(k['title']))
-            elif 'phpims' in k['title']:
-                if not get_process_id('phpims'):
-                    lists[i]['status']=4
-                    sqlite("software",config.software).where('id',k['id']).update({'status':4})
-        i+=1
+                    sqlite("software",config.software).where('id',k['id']).update({'status':lists[i]['status']})
+            if (k['status'] == 10 or k['status'] == 4) and k['platform']=='Linux': #检查软件是否在运行中
+                if 'nginx' in k['title'] :
+                    if not get_process_id('nginx'):
+                        if k['status'] == 10:
+                            lists[i]['status']=4
+                            sqlite("software",config.software).where('id',k['id']).update({'status':4}) #停止
+                    else:
+                        if k['status'] == 4:
+                            lists[i]['status']=10
+                            sqlite("software",config.software).where('id',k['id']).update({'status':10}) #运行中
+                elif 'redis' in k['title']:
+                    if not get_process_id('redis'):
+                        if k['status'] == 10:
+                            lists[i]['status']=4
+                            sqlite("software",config.software).where('id',k['id']).update({'status':4}) #停止
+                    else:
+                        if k['status'] == 4:
+                            lists[i]['status']=10
+                            sqlite("software",config.software).where('id',k['id']).update({'status':10}) #运行中
+                elif 'mysql' in k['title']:
+                    if not get_process_id('mysql'):
+                        if k['status'] == 10:
+                            lists[i]['status']=4
+                            sqlite("software",config.software).where('id',k['id']).update({'status':4}) #停止
+                    else:
+                        if k['status'] == 4:
+                            lists[i]['status']=10
+                            sqlite("software",config.software).where('id',k['id']).update({'status':10}) #运行中
+                elif 'php5' in k['title'] or 'php7' in k['title']:
+                    if not get_process_id(k['title']):
+                        if k['status'] == 10:
+                            lists[i]['status']=4
+                            sqlite("software",config.software).where('id',k['id']).update({'status':4}) #停止
+                    else:
+                        if k['status'] == 4:
+                            lists[i]['status']=10
+                            sqlite("software",config.software).where('id',k['id']).update({'status':10}) #运行中
+                elif 'phpims' in k['title']:
+                    if not get_process_id('phpims'):
+                        if k['status'] == 10:
+                            lists[i]['status']=4
+                            sqlite("software",config.software).where('id',k['id']).update({'status':4}) #停止
+                    else:
+                        if k['status'] == 4:
+                            lists[i]['status']=10
+                            sqlite("software",config.software).where('id',k['id']).update({'status':10}) #运行中
+            i+=1
     count=sqlite('software',config.software).where(where).count()
     data=get_json_list(lists,count,pagenow,pagesize)
     data['sysinfo']=get_sysinfo()
     data['kodexplorer']=''
     if sqlite('software',config.software).where([('title','like',"%kodexplorer%"),'and',('status','gt',3),'and',('platform','eq',get_sysinfo()['uname'][0])]).count():
-        a=sqlite('app_web').where('title','eq',"kodexplorer").find()
+        a=sqlite('app_web',config.sqliteweb).where('title','eq',"kodexplorer").find()
         if a:
             ttt1=a['domain'].split("\n")
             data['kodexplorer']='http://'+ttt1[0]+":"+a['port']
@@ -155,7 +181,7 @@ def install(id=''):
     return returnjson()
 
 def uninstall(id=''):
-    "卸载软件和重启软件"
+    "卸载软件和重启软件" 
     id=int(id)
     ar=sqlite('software',config.software).where('id',id).find()
     if not ar:

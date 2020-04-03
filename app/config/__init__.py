@@ -2,8 +2,6 @@
 from .other import *
 import re
 #下面的配置都是全局的
-APP_PATH=os.path.realpath(__file__) #app目录
-APP_PATH=APP_PATH[:-19]
 #目录配置
 # 应用配置
 app['app_debug']=True  #是否开启调试模式
